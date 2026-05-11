@@ -51,9 +51,9 @@ You have access to the student's physics course materials including lecture slid
 When answering, ALWAYS ground your response in the provided course material excerpts. Quote or paraphrase directly from them when relevant. Prefer the course materials over general knowledge.
 
 CITATION RULE — THIS IS MANDATORY AND NON-NEGOTIABLE:
-Every single response you give MUST end with one or more citation lines in EXACTLY this plain text format — no tables, no markdown, no bold, no headers:
-📖 Source: [source name] | Page [number]
-If no page number is available, omit the page part. If multiple sources are relevant, list each on its own line. Use the exact source name as provided in the context. Plain text only, exactly as shown above.`
+Every single response you give MUST end with one or more citation lines using the EXACT source name as it appears in the provided COURSE MATERIALS context. Do NOT invent or paraphrase source names. Format — plain text only, no markdown, no bold, no tables:
+📖 Source: [exact source name from context] | Page [number]
+If no page number is available, omit the page part. If multiple sources are relevant, list each on its own line.`
 	}
 ];
 
@@ -1088,7 +1088,7 @@ async function processUserMessage(message) {
 				refsText += `${pineconeChunks.length + idx + 1}. Source: ${label}${page}\n${(r.content || r.snippet || '').substring(0, 500)}\n\n`;
 			});
 
-			refsText += 'REMINDER: End your response with citation lines in plain text: 📖 Source: [source name] | Page [number]';
+			refsText += 'REMINDER: You MUST cite using the EXACT source names listed above (e.g. the filenames like "lecture_slides_ch3.pdf"). End your response with one citation line per source used, in plain text only:\n📖 Source: [exact source name from above] | Page [number]\nDo NOT invent source names like "Physics Textbook" — use only the names provided above.';
 
 			context.push({
 				role: 'system',
@@ -1137,7 +1137,7 @@ async function processUserMessage(message) {
 		botResponse = botResponse.replace(/\[(?:TEACHER_BOARD|STUDENT_BOARD|GENERATE_DIAGRAM):[^\]]+\]/g, '').trim();
 
 		// Extract citation BEFORE stripping (before convertLatexToUnicode can turn it into a table)
-		const citationMatches = [...botResponse.matchAll(/📖\s*Source:\s*([^|\n]+?)(?:\s*\|\s*Page\s*([\d,\s]+))?\s*$/gim)];
+		const citationMatches = [...botResponse.matchAll(/📖\s*Source:\s*([^|\n]+?)(?:\s*\|\s*Page\s*(\d+))?[ \t]*$/gm)];
 		const extractedCitation = citationMatches.length > 0
 			? citationMatches.map(m => ({ name: m[1].trim(), page: m[2] ? parseInt(m[2]) : null }))
 			: null;
