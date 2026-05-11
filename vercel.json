@@ -1,6 +1,5 @@
 {
-    "rewrites": [
-      { "source": "/", "destination": "/tutor.html" }
-    ]
-  }
-  
+  "rewrites": [
+    { "source": "/", "destination": "/tutor.html" }
+  ]
+}

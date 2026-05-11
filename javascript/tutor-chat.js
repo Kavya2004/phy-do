@@ -520,6 +520,9 @@ function addMessage(text, sender, files = [], citation = null) {
 		citationHTML = citation.map(c => {
 			const pageLabel = c.page ? ` · p.${c.page}` : '';
 			const icon = getSourceIcon(c.name);
+			if (c.url) {
+				return `<a class="citation-pill" href="${c.url}" target="_blank" rel="noopener noreferrer" title="Open source">${icon} ${c.name}${pageLabel}</a>`;
+			}
 			return `<span class="citation-pill" ${c.page ? `onclick="showBookRef(${c.page})"` : ''} title="Source reference">${icon} ${c.name}${pageLabel}</span>`;
 		}).join('');
 	}
@@ -941,10 +944,11 @@ async function searchPhysicsTextbook(query) {
 			const pineconeData = await pineconeRes.json();
 			const pineconeResults = (pineconeData.chunks || []).map(chunk => ({
 				title: chunk.source,
-				link: chunk.source,
+				link: chunk.url || chunk.source,
 				pageNumber: chunk.page,
 				snippet: chunk.text.substring(0, 200),
 				content: chunk.text,
+				url: chunk.url,
 				fromPinecone: true
 			}));
 			results = [...pineconeResults, ...results];
@@ -1072,6 +1076,10 @@ async function processUserMessage(message) {
 		// Search for matching physics textbook sections
 		const searchResults = await searchPhysicsTextbook(message);
 
+		// Build a url lookup map: source name -> url (for YouTube links)
+		const sourceUrlMap = {};
+		searchResults.forEach(r => { if (r.url) sourceUrlMap[r.title] = r.url; });
+
 		if (searchResults.length > 0) {
 			const pineconeChunks = searchResults.filter(r => r.fromPinecone);
 			const textbookChunks = searchResults.filter(r => !r.fromPinecone);
@@ -1139,7 +1147,7 @@ async function processUserMessage(message) {
 		// Extract citation BEFORE stripping (before convertLatexToUnicode can turn it into a table)
 		const citationMatches = [...botResponse.matchAll(/📖\s*Source:\s*([^|\n]+?)(?:\s*\|\s*Page\s*(\d+))?[ \t]*$/gm)];
 		const extractedCitation = citationMatches.length > 0
-			? citationMatches.map(m => ({ name: m[1].trim(), page: m[2] ? parseInt(m[2]) : null }))
+			? citationMatches.map(m => ({ name: m[1].trim(), page: m[2] ? parseInt(m[2]) : null, url: sourceUrlMap[m[1].trim()] || null }))
 			: null;
 		// Strip ALL citation formats before any rendering
 		botResponse = botResponse
@@ -1390,15 +1398,15 @@ window.addOcrMessageToChat = function (ocrText, boardType) {
 function getSourceIcon(sourceName) {
 	if (!sourceName) return '📖';
 	const s = sourceName.toLowerCase();
-	if (s.includes('slide') || s.includes('ppt') || s.includes('lecture')) return '🖥️';
-	if (s.includes('textbook') || s.includes('book') || s.includes('college physics') || s.includes('chapter')) return '📚';
+	if (s.includes('youtube') || s.includes('video') || s.includes('lecture video')) return '🎬';
+	if (s.includes('slide') || s.includes('ppt')) return '🖥️';
+	if (s.includes('textbook') || s.includes('book') || s.includes('college physics')) return '📚';
 	if (s.includes('note') || s.includes('summary') || s.includes('review')) return '📝';
 	if (s.includes('problem') || s.includes('exercise') || s.includes('hw') || s.includes('homework')) return '✏️';
 	if (s.includes('exam') || s.includes('quiz') || s.includes('test') || s.includes('midterm') || s.includes('final')) return '📋';
 	if (s.includes('lab') || s.includes('experiment')) return '🔬';
-	if (s.includes('video') || s.includes('mp4') || s.includes('lecture recording')) return '🎬';
-	if (s.includes('.pdf')) return '📄';
-	return '📖';
+	if (s.includes('lecture') || s.includes('class') || s.includes('lec')) return '🎫';
+	return '📄';
 }
 
 let _pdfCurrentPage = 1;
