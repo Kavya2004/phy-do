@@ -49,11 +49,9 @@ REFERENCE LINKS INSTRUCTIONS:
 
 You have access to the student's physics course materials including lecture slides, textbook chapters, and other uploaded resources. Relevant excerpts will be provided in context under "COURSE MATERIALS".
 When answering, ALWAYS ground your response in the provided course material excerpts. Quote or paraphrase directly from them when relevant. Prefer the course materials over general knowledge.
+Do NOT invent, paraphrase, or rename source materials. If you refer to a source in your response text, use its EXACT name as listed in the COURSE MATERIALS context — nothing else.
 
-CITATION RULE — THIS IS MANDATORY AND NON-NEGOTIABLE:
-Every single response you give MUST end with one or more citation lines using the EXACT source name as it appears in the provided COURSE MATERIALS context. Do NOT invent or paraphrase source names. Format — plain text only, no markdown, no bold, no tables:
-📖 Source: [exact source name from context] | Page [number]
-If no page number is available, omit the page part. If multiple sources are relevant, list each on its own line.`
+CITATION RULE: Do NOT write any citation lines or source references in your response. Citations are handled automatically by the system from the provided COURSE MATERIALS context.`
 	}
 ];
 
@@ -1096,7 +1094,7 @@ async function processUserMessage(message) {
 				refsText += `${pineconeChunks.length + idx + 1}. Source: ${label}${page}\n${(r.content || r.snippet || '').substring(0, 500)}\n\n`;
 			});
 
-			refsText += 'REMINDER: You MUST cite using the EXACT source names listed above (e.g. the filenames like "lecture_slides_ch3.pdf"). End your response with one citation line per source used, in plain text only:\n📖 Source: [exact source name from above] | Page [number]\nDo NOT invent source names like "Physics Textbook" — use only the names provided above.';
+			refsText += 'Use the above materials to ground your response. Do NOT mention source names or citations in your response text — citations are handled separately.';
 
 			context.push({
 				role: 'system',
@@ -1145,10 +1143,11 @@ async function processUserMessage(message) {
 		botResponse = botResponse.replace(/\[(?:TEACHER_BOARD|STUDENT_BOARD|GENERATE_DIAGRAM):[^\]]+\]/g, '').trim();
 
 		// Extract citation BEFORE stripping (before convertLatexToUnicode can turn it into a table)
-		const citationMatches = [...botResponse.matchAll(/📖\s*Source:\s*([^|\n]+?)(?:\s*\|\s*Page\s*(\d+))?[ \t]*$/gm)];
-		const extractedCitation = citationMatches.length > 0
-			? citationMatches.map(m => ({ name: m[1].trim(), page: m[2] ? parseInt(m[2]) : null, url: sourceUrlMap[m[1].trim()] || null }))
-			: null;
+		// Always use actual Pinecone source names — ignore whatever Gemini wrote
+		const extractedCitation = searchResults
+			.filter(r => r.fromPinecone)
+			.filter((r, i, arr) => arr.findIndex(x => x.title === r.title) === i) // dedupe
+			.map(r => ({ name: r.title, page: r.pageNumber || null, url: r.url || null }));
 		// Strip ALL citation formats before any rendering
 		botResponse = botResponse
 			.replace(/📖\s*Source:[^\n]*/gi, '')
