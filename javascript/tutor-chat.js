@@ -895,8 +895,8 @@ async function searchPhysicsTextbook(query) {
 	}
 	
 	try {
-		// Search both web pages and PDFs
-		const [webRes, pdfRes] = await Promise.all([
+		// Search web pages, PDFs, and Pinecone in parallel
+		const [webRes, pdfRes, pineconeRes] = await Promise.all([
 			fetch('/api/search', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -906,7 +906,12 @@ async function searchPhysicsTextbook(query) {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ query })
-			})
+			}),
+			fetch('/api/pinecone', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ query })
+			}).catch(() => null)
 		]);
 
 		let results = [];
@@ -926,6 +931,19 @@ async function searchPhysicsTextbook(query) {
 				content: pdf.content
 			}));
 			results = [...results, ...pdfResults];
+		}
+
+		if (pineconeRes && pineconeRes.ok) {
+			const pineconeData = await pineconeRes.json();
+			const pineconeResults = (pineconeData.chunks || []).map(chunk => ({
+				title: chunk.source,
+				link: chunk.source,
+				pageNumber: chunk.page,
+				snippet: chunk.text.substring(0, 200),
+				content: chunk.text,
+				fromPinecone: true
+			}));
+			results = [...pineconeResults, ...results];
 		}
 		
 		// Cache results (limit cache size)
@@ -1051,9 +1069,22 @@ async function processUserMessage(message) {
 		const searchResults = await searchPhysicsTextbook(message);
 
 		if (searchResults.length > 0) {
-			let refsText = 'Relevant sections from College Physics 2e:\n';
+			const pineconeChunks = searchResults.filter(r => r.fromPinecone);
+			const textbookChunks = searchResults.filter(r => !r.fromPinecone);
+
+			let refsText = '';
+			if (pineconeChunks.length > 0) {
+				refsText += 'Relevant excerpts from your physics course materials (slides, textbook, etc.):\n';
+				pineconeChunks.forEach((r, idx) => {
+					refsText += `${idx + 1}. [${r.title}]${r.pageNumber ? ` p.${r.pageNumber}` : ''}\n   ${r.content.substring(0, 600)}\n`;
+				});
+				refsText += '\n';
+			}
+			if (textbookChunks.length > 0) {
+				refsText += 'Relevant sections from College Physics 2e:\n';
+			}
 			let bookPage = null;
-			searchResults.forEach((r, idx) => {
+			textbookChunks.forEach((r, idx) => {
 				refsText += `${idx + 1}. ${r.title} - ${r.link}\n   ${r.snippet}\n`;
 				if (r.content) {
 					refsText += `   Content excerpt: ${r.content.substring(0, 500)}...\n`;
