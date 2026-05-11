@@ -47,13 +47,13 @@ Focus on core introductory physics topics only. Use whiteboards to set up counte
 
 REFERENCE LINKS INSTRUCTIONS:
 
-You have access to the uploaded physics textbook "College Physics 2e" (college-physics-2e.pdf). Relevant excerpts from it will be provided in context.
-When answering, ALWAYS ground your response in the textbook content provided. Quote or paraphrase directly from it when relevant.
+You have access to the student's physics course materials including lecture slides, textbook chapters, and other uploaded resources. Relevant excerpts will be provided in context under "COURSE MATERIALS".
+When answering, ALWAYS ground your response in the provided course material excerpts. Quote or paraphrase directly from them when relevant. Prefer the course materials over general knowledge.
 
 CITATION RULE — THIS IS MANDATORY AND NON-NEGOTIABLE:
-Every single response you give MUST end with a citation line in EXACTLY this plain text format and nothing else — no tables, no markdown, no bold, no headers:
-📖 Source: College Physics 2e | Chapter [number]: [Chapter Name] | Page [number]
-If multiple pages or chapters are relevant, list each on its own line in the same format. You must NEVER use a table, grid, or any other formatting for the citation. Plain text only, exactly as shown above.`
+Every single response you give MUST end with one or more citation lines in EXACTLY this plain text format — no tables, no markdown, no bold, no headers:
+📖 Source: [source name] | Page [number]
+If no page number is available, omit the page part. If multiple sources are relevant, list each on its own line. Use the exact source name as provided in the context. Plain text only, exactly as shown above.`
 	}
 ];
 
@@ -517,7 +517,8 @@ function addMessage(text, sender, files = [], citation = null) {
 
 	let citationHTML = '';
 	if (sender === 'bot' && citation) {
-		citationHTML = `<span class="citation-pill" onclick="showBookRef(${citation.page})" title="Open in textbook viewer">📖 Ch.${citation.ch}: ${citation.name} · p.${citation.page}</span>`;
+		const pageLabel = citation.page ? ` · p.${citation.page}` : '';
+		citationHTML = `<span class="citation-pill" ${citation.page ? `onclick="showBookRef(${citation.page})"` : ''} title="Source reference">📖 ${citation.name}${pageLabel}</span>`;
 	}
 
 	content.innerHTML = displayText
@@ -1072,27 +1073,19 @@ async function processUserMessage(message) {
 			const pineconeChunks = searchResults.filter(r => r.fromPinecone);
 			const textbookChunks = searchResults.filter(r => !r.fromPinecone);
 
-			let refsText = '';
-			if (pineconeChunks.length > 0) {
-				refsText += 'Relevant excerpts from your physics course materials (slides, textbook, etc.):\n';
-				pineconeChunks.forEach((r, idx) => {
-					refsText += `${idx + 1}. [${r.title}]${r.pageNumber ? ` p.${r.pageNumber}` : ''}\n   ${r.content.substring(0, 600)}\n`;
-				});
-				refsText += '\n';
-			}
-			if (textbookChunks.length > 0) {
-				refsText += 'Relevant sections from College Physics 2e:\n';
-			}
-			let bookPage = null;
-			textbookChunks.forEach((r, idx) => {
-				refsText += `${idx + 1}. ${r.title} - ${r.link}\n   ${r.snippet}\n`;
-				if (r.content) {
-					refsText += `   Content excerpt: ${r.content.substring(0, 500)}...\n`;
-				}
-				if (r.pageNumber && !bookPage) bookPage = r.pageNumber;
-				if (r.pageNumber) refsText += `   PDF Page: ${r.pageNumber}\n`;
+			let refsText = 'COURSE MATERIALS — use these as your primary reference:\n';
+
+			pineconeChunks.forEach((r, idx) => {
+				refsText += `${idx + 1}. Source: ${r.title}${r.pageNumber ? ` | Page ${r.pageNumber}` : ''}\n${r.content.substring(0, 800)}\n\n`;
 			});
-			refsText += '\nREMINDER: End your response with ONLY this plain text line (no table, no markdown formatting): 📖 Source: College Physics 2e | Chapter [number]: [Chapter Name] | Page [number]';
+
+			textbookChunks.forEach((r, idx) => {
+				const label = r.title || 'College Physics 2e';
+				const page = r.pageNumber ? ` | Page ${r.pageNumber}` : '';
+				refsText += `${pineconeChunks.length + idx + 1}. Source: ${label}${page}\n${(r.content || r.snippet || '').substring(0, 500)}\n\n`;
+			});
+
+			refsText += 'REMINDER: End your response with citation lines in plain text: 📖 Source: [source name] | Page [number]';
 
 			context.push({
 				role: 'system',
@@ -1141,14 +1134,13 @@ async function processUserMessage(message) {
 		botResponse = botResponse.replace(/\[(?:TEACHER_BOARD|STUDENT_BOARD|GENERATE_DIAGRAM):[^\]]+\]/g, '').trim();
 
 		// Extract citation BEFORE stripping (before convertLatexToUnicode can turn it into a table)
-		const citationMatch = botResponse.match(/📖\s*Source:\s*College Physics 2e\s*\|\s*Chapter\s*(\d+):\s*([^|\n]+)\|\s*Page\s*([\d,\s]+)/i);
+		const citationMatch = botResponse.match(/📖\s*Source:\s*([^|\n]+?)(?:\s*\|\s*Page\s*([\d,\s]+))?\s*$/im);
 		const extractedCitation = citationMatch
-			? { ch: citationMatch[1].trim(), name: citationMatch[2].trim(), page: parseInt(citationMatch[3]) }
+			? { ch: null, name: citationMatch[1].trim(), page: citationMatch[2] ? parseInt(citationMatch[2]) : null }
 			: null;
 		// Strip ALL citation formats before any rendering
 		botResponse = botResponse
 			.replace(/📖\s*Source:[^\n]*/gi, '')
-			.replace(/(?:\|[^\n]*(?:Source|College Physics|Chapter|PAGE)[^\n]*\|?\n?)+/gi, '')
 			.replace(/^[-|\s]+$/gm, '')
 			.trim();
 
