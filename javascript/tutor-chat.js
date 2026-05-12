@@ -1428,34 +1428,48 @@ let _pdfTotalPages = 0;
 
 async function showBookRef(pageNumber) {
 	const overlay = document.getElementById('bookRefOverlay');
-	const iframe = document.getElementById('bookRefIframe');
 	const label = document.getElementById('bookRefPageLabel');
 	const title = document.getElementById('bookRefTitle');
 	const nav = document.getElementById('bookRefNav');
-	if (!overlay || !iframe) return;
+	const iframe = document.getElementById('bookRefIframe');
+	if (!overlay) return;
 
 	overlay.style.display = 'flex';
-	nav.style.display = 'flex';
+	if (nav) nav.style.display = 'flex';
+	if (iframe) { iframe.src = ''; iframe.style.display = 'none'; }
 	if (title) title.textContent = '📖 College Physics 2e';
-	if (label) label.textContent = `Page ${pageNumber}`;
-
-	// Point iframe at the OpenStax hosted PDF at the correct page
-	iframe.src = `https://assets.openstax.org/oscms-prodcms/media/documents/college-physics-2e.pdf#page=${pageNumber}`;
 	_pdfCurrentPage = pageNumber;
 
-	// Get total pages for nav
+	const textDiv = getOrCreateTextDiv();
+	textDiv.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">Loading...</p>';
+
 	try {
 		const res = await fetch('/api/pdf-page', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ page: pageNumber })
 		});
-		if (res.ok) {
-			const data = await res.json();
-			_pdfTotalPages = data.total;
-			if (label) label.textContent = `Page ${pageNumber} / ${_pdfTotalPages}`;
-		}
-	} catch (e) {}
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const data = await res.json();
+		_pdfCurrentPage = data.page;
+		_pdfTotalPages = data.total;
+		if (label) label.textContent = `Page ${_pdfCurrentPage} / ${_pdfTotalPages}`;
+		textDiv.innerHTML = `<p>${data.text.replace(/\n/g, '<br>')}</p>`;
+	} catch (e) {
+		textDiv.innerHTML = `<p style="color:#c00">Failed to load: ${e.message}</p>`;
+	}
+}
+
+function getOrCreateTextDiv() {
+	let textDiv = document.getElementById('bookRefTextDiv');
+	if (!textDiv) {
+		textDiv = document.createElement('div');
+		textDiv.id = 'bookRefTextDiv';
+		textDiv.style.cssText = 'flex:1;overflow-y:auto;padding:24px;background:#fff;font-size:15px;line-height:1.9;color:#222;font-family:Georgia,serif;white-space:pre-wrap;';
+		document.getElementById('bookRefPanel').appendChild(textDiv);
+	}
+	textDiv.style.display = 'block';
+	return textDiv;
 }
 
 function showTextRef(text, name, page) {
@@ -1470,39 +1484,15 @@ function showTextRef(text, name, page) {
 	if (iframe) { iframe.src = ''; iframe.style.display = 'none'; }
 	if (title) title.textContent = `${name}${page ? ' · p.' + page : ''}`;
 
-	let textDiv = document.getElementById('bookRefTextDiv');
-	if (!textDiv) {
-		textDiv = document.createElement('div');
-		textDiv.id = 'bookRefTextDiv';
-		textDiv.style.cssText = 'flex:1;overflow-y:auto;padding:24px;background:#fff;font-size:15px;line-height:1.9;color:#222;font-family:Georgia,serif;white-space:pre-wrap;';
-		iframe.parentNode.appendChild(textDiv);
-	}
-	textDiv.style.display = 'block';
+	const textDiv = getOrCreateTextDiv();
 	textDiv.textContent = text || 'No content available.';
 }
 
 window.showTextRef = showTextRef;
 
 function showUrlRef(url, name) {
-	const overlay = document.getElementById('bookRefOverlay');
-	const iframe = document.getElementById('bookRefIframe');
-	const title = document.getElementById('bookRefTitle');
-	const nav = document.getElementById('bookRefNav');
-	if (!overlay || !iframe) return;
-
-	const textDiv = document.getElementById('bookRefTextDiv');
-	if (textDiv) textDiv.style.display = 'none';
-
-	overlay.style.display = 'flex';
-	if (nav) nav.style.display = 'none';
-	if (title) title.textContent = name || '🔗 Reference';
-	iframe.style.display = 'block';
-
-	const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
-	const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-	iframe.src = isYoutube && ytMatch
-		? `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`
-		: url;
+	// YouTube and external sites can't be iframed — open in new tab
+	window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 function bookRefChangePage(delta) {
