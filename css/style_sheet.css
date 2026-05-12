@@ -2567,9 +2567,9 @@ figure figcaption {
     justify-content: center;
 }
 #bookRefPanel {
-    width: 680px;
-    max-width: 92vw;
-    max-height: 88vh;
+    width: 860px;
+    max-width: 94vw;
+    height: 88vh;
     display: flex;
     flex-direction: column;
     border-radius: 10px;
@@ -2614,17 +2614,6 @@ figure figcaption {
     line-height: 1;
     padding: 0 4px;
     margin-left: auto;
-}
-#bookRefTextWrap {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px 24px;
-    background: #fff;
-    font-size: 14px;
-    line-height: 1.8;
-    color: #222;
-    white-space: pre-wrap;
-    font-family: Georgia, serif;
 }
 @media (max-width: 900px) {
     #bookRefPanel {

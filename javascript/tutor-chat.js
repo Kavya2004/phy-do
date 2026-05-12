@@ -519,7 +519,7 @@ function addMessage(text, sender, files = [], citation = null) {
 			const pageLabel = c.page ? ` · p.${c.page}` : '';
 			const icon = getSourceIcon(c.name);
 			if (c.url) {
-				return `<a class="citation-pill" href="${c.url}" target="_blank" rel="noopener noreferrer" title="Open source">${icon} ${c.name}${pageLabel}</a>`;
+				return `<span class="citation-pill" onclick="showUrlRef('${c.url}', '${(c.name||'').replace(/'/g, '')}')" title="Open source">${icon} ${c.name}${pageLabel}</span>`;
 			}
 			return `<span class="citation-pill" ${c.page ? `onclick="showBookRef(${c.page})"` : ''} title="Source reference">${icon} ${c.name}${pageLabel}</span>`;
 		}).join('');
@@ -1413,44 +1413,66 @@ let _pdfTotalPages = 0;
 
 async function showBookRef(pageNumber) {
 	const overlay = document.getElementById('bookRefOverlay');
-	if (!overlay) return;
-	overlay.style.display = 'flex';
-	await renderBookPage(pageNumber);
-}
-
-async function renderBookPage(pageNumber) {
-	const wrap = document.getElementById('bookRefTextWrap');
+	const iframe = document.getElementById('bookRefIframe');
 	const label = document.getElementById('bookRefPageLabel');
-	if (!wrap) return;
+	const title = document.getElementById('bookRefTitle');
+	const nav = document.getElementById('bookRefNav');
+	if (!overlay || !iframe) return;
 
-	wrap.innerHTML = '<p style="color:#aaa;padding:20px;text-align:center">Loading...</p>';
+	overlay.style.display = 'flex';
+	nav.style.display = 'flex';
+	if (title) title.textContent = '📖 College Physics 2e';
+	if (label) label.textContent = `Page ${pageNumber}`;
 
+	// Point iframe at the PDF with page fragment
+	iframe.src = `/college-physics-2e.pdf#page=${pageNumber}`;
+	_pdfCurrentPage = pageNumber;
+
+	// Get total pages for nav
 	try {
 		const res = await fetch('/api/pdf-page', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ page: pageNumber })
 		});
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const data = await res.json();
-		_pdfCurrentPage = data.page;
-		_pdfTotalPages = data.total;
-		if (label) label.textContent = `Page ${_pdfCurrentPage} / ${_pdfTotalPages}`;
-		wrap.innerHTML = `<p>${data.text.replace(/\n/g, '<br>')}</p>`;
-	} catch (e) {
-		wrap.innerHTML = `<p style="color:#c00;padding:20px">Failed to load page: ${e.message}</p>`;
-	}
+		if (res.ok) {
+			const data = await res.json();
+			_pdfTotalPages = data.total;
+			if (label) label.textContent = `Page ${pageNumber} / ${_pdfTotalPages}`;
+		}
+	} catch (e) {}
+}
+
+function showUrlRef(url, name) {
+	const overlay = document.getElementById('bookRefOverlay');
+	const iframe = document.getElementById('bookRefIframe');
+	const title = document.getElementById('bookRefTitle');
+	const nav = document.getElementById('bookRefNav');
+	if (!overlay || !iframe) return;
+
+	overlay.style.display = 'flex';
+	if (nav) nav.style.display = 'none';
+	if (title) title.textContent = name || '🔗 Reference';
+
+	// Convert YouTube watch URLs to embed URLs
+	const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+	iframe.src = ytMatch
+		? `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`
+		: url;
 }
 
 function bookRefChangePage(delta) {
-	renderBookPage(_pdfCurrentPage + delta);
+	showBookRef(_pdfCurrentPage + delta);
 }
 
 function closeBookRef() {
 	const overlay = document.getElementById('bookRefOverlay');
+	const iframe = document.getElementById('bookRefIframe');
 	if (overlay) overlay.style.display = 'none';
+	if (iframe) iframe.src = ''; // stop video/pdf
 }
 
 window.closeBookRef = closeBookRef;
 window.bookRefChangePage = bookRefChangePage;
 window.showBookRef = showBookRef;
+window.showUrlRef = showUrlRef;

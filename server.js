@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -6,7 +7,11 @@ import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import geminiHandler from './api/gemini.js';
-import imageGenHandler from './api/image-gen.js'; // gemini-3.1-flash-image-preview
+import imageGenHandler from './api/image-gen.js';
+import pineconeHandler from './api/pinecone.js';
+import searchHandler from './api/search.js';
+import pdfContentHandler from './api/pdf-content.js';
+import pdfPageHandler from './api/pdf-page.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +28,10 @@ app.use(express.static('.'));
 // API routes
 app.post('/api/gemini', geminiHandler);
 app.post('/api/image-gen', imageGenHandler);
+app.post('/api/pinecone', pineconeHandler);
+app.post('/api/search', searchHandler);
+app.post('/api/pdf-content', pdfContentHandler);
+app.post('/api/pdf-page', pdfPageHandler);
 
 // ── Session store ──────────────────────────────────────────────
 const sessions = new Map();

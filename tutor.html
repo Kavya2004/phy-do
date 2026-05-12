@@ -138,7 +138,7 @@
 				<div id="bookRefOverlay" style="display:none;" onclick="if(event.target===this)closeBookRef()">
 					<div id="bookRefPanel">
 						<div id="bookRefHeader">
-							<span>📖 College Physics 2e</span>
+							<span id="bookRefTitle">📖 College Physics 2e</span>
 							<div id="bookRefNav">
 								<button onclick="bookRefChangePage(-1)">&#8249;</button>
 								<span id="bookRefPageLabel"></span>
@@ -146,7 +146,7 @@
 							</div>
 							<button id="bookRefClose" onclick="closeBookRef()">✕</button>
 						</div>
-						<div id="bookRefTextWrap"></div>
+						<iframe id="bookRefIframe" style="width:100%;flex:1;border:none;"></iframe>
 					</div>
 				</div>
 			</div>
