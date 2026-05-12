@@ -521,7 +521,22 @@ function addMessage(text, sender, files = [], citation = null) {
 			if (c.url) {
 				return `<span class="citation-pill" onclick="showUrlRef('${c.url}', '${(c.name||'').replace(/'/g, '')}')" title="Open source">${icon} ${c.name}${pageLabel}</span>`;
 			}
-			return `<span class="citation-pill" ${c.page ? `onclick="showBookRef(${c.page})"` : ''} title="Source reference">${icon} ${c.name}${pageLabel}</span>`;
+			if (c.page) {
+				return `<span class="citation-pill" onclick="showBookRef(${c.page})" title="Open textbook page">${icon} ${c.name}${pageLabel}</span>`;
+			}
+			// Video — search the YouTube channel
+			const isVideo = /video|lecture video/i.test(c.name || '');
+			if (isVideo) {
+				const query = encodeURIComponent((c.name || '').replace(/videos? for|lecture videos?/gi, '').trim());
+				const channelUrl = `https://www.youtube.com/@heathhatch6813/search?query=${query}`;
+				return `<span class="citation-pill" onclick="showUrlRef('${channelUrl}', '${(c.name||'').replace(/'/g, '')}')" title="Search channel">${icon} ${c.name}</span>`;
+			}
+			// Slides/notes/equation sheets — show text content from Pinecone
+			if (c.text) {
+				const safeText = c.text.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/'/g, '\'');
+				return `<span class="citation-pill" onclick="showTextRef(\`${safeText}\`, '${(c.name||'').replace(/'/g, '')}', ${c.page||1})" title="View source">${icon} ${c.name}${pageLabel}</span>`;
+			}
+			return `<span class="citation-pill" title="Source reference">${icon} ${c.name}${pageLabel}</span>`;
 		}).join('');
 	}
 
@@ -1147,7 +1162,7 @@ async function processUserMessage(message) {
 		const extractedCitation = searchResults
 			.filter(r => r.fromPinecone)
 			.filter((r, i, arr) => arr.findIndex(x => x.title === r.title) === i) // dedupe
-			.map(r => ({ name: r.title, page: r.pageNumber || null, url: r.url || null }));
+			.map(r => ({ name: r.title, page: r.pageNumber || null, url: r.url || null, text: r.content || r.snippet || null }));
 		// Strip ALL citation formats before any rendering
 		botResponse = botResponse
 			.replace(/📖\s*Source:[^\n]*/gi, '')
@@ -1424,8 +1439,8 @@ async function showBookRef(pageNumber) {
 	if (title) title.textContent = '📖 College Physics 2e';
 	if (label) label.textContent = `Page ${pageNumber}`;
 
-	// Point iframe at the PDF with page fragment
-	iframe.src = `/college-physics-2e.pdf#page=${pageNumber}`;
+	// Point iframe at the OpenStax hosted PDF at the correct page
+	iframe.src = `https://assets.openstax.org/oscms-prodcms/media/documents/college-physics-2e.pdf#page=${pageNumber}`;
 	_pdfCurrentPage = pageNumber;
 
 	// Get total pages for nav
@@ -1443,7 +1458,32 @@ async function showBookRef(pageNumber) {
 	} catch (e) {}
 }
 
-function showUrlRef(url, name) {
+function showTextRef(text, name, page) {
+	const overlay = document.getElementById('bookRefOverlay');
+	const iframe = document.getElementById('bookRefIframe');
+	const title = document.getElementById('bookRefTitle');
+	const nav = document.getElementById('bookRefNav');
+	if (!overlay) return;
+
+	overlay.style.display = 'flex';
+	if (nav) nav.style.display = 'none';
+	if (iframe) { iframe.src = ''; iframe.style.display = 'none'; }
+	if (title) title.textContent = `${name}${page ? ' · p.' + page : ''}`;
+
+	let textDiv = document.getElementById('bookRefTextDiv');
+	if (!textDiv) {
+		textDiv = document.createElement('div');
+		textDiv.id = 'bookRefTextDiv';
+		textDiv.style.cssText = 'flex:1;overflow-y:auto;padding:24px;background:#fff;font-size:15px;line-height:1.9;color:#222;font-family:Georgia,serif;white-space:pre-wrap;';
+		iframe.parentNode.appendChild(textDiv);
+	}
+	textDiv.style.display = 'block';
+	textDiv.textContent = text || 'No content available.';
+}
+
+window.showTextRef = showTextRef;
+
+
 	const overlay = document.getElementById('bookRefOverlay');
 	const iframe = document.getElementById('bookRefIframe');
 	const title = document.getElementById('bookRefTitle');
