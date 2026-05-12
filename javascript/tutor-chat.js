@@ -518,24 +518,22 @@ function addMessage(text, sender, files = [], citation = null) {
 		citationHTML = citation.map(c => {
 			const pageLabel = c.page ? ` · p.${c.page}` : '';
 			const icon = getSourceIcon(c.name);
+			const isTextbook = /college physics/i.test(c.name || '');
+
+			// YouTube — open video link
 			if (c.url) {
-				return `<span class="citation-pill" onclick="showUrlRef('${c.url}', '${(c.name||'').replace(/'/g, '')}')" title="Open source">${icon} ${c.name}${pageLabel}</span>`;
+				return `<a class="citation-pill" href="${c.url}" target="_blank" rel="noopener noreferrer" title="Watch video">${icon} ${c.name}</a>`;
 			}
-			if (c.page) {
-				return `<span class="citation-pill" onclick="showBookRef(${c.page})" title="Open textbook page">${icon} ${c.name}${pageLabel}</span>`;
+			// Textbook — open built-in PDF viewer
+			if (isTextbook && c.page) {
+				return `<span class="citation-pill" onclick="showBookRef(${c.page})" style="cursor:pointer" title="Open textbook page">${icon} ${c.name}${pageLabel}</span>`;
 			}
-			// Video — search the YouTube channel
-			const isVideo = /video|lecture video/i.test(c.name || '');
-			if (isVideo) {
-				const query = encodeURIComponent((c.name || '').replace(/videos? for|lecture videos?/gi, '').trim());
-				const channelUrl = `https://www.youtube.com/@heathhatch6813/search?query=${query}`;
-				return `<span class="citation-pill" onclick="showUrlRef('${channelUrl}', '${(c.name||'').replace(/'/g, '')}')" title="Search channel">${icon} ${c.name}</span>`;
-			}
-			// Slides/notes/equation sheets — show text content from Pinecone
+			// Slides/notes/exams — show the chunk text in a popup
 			if (c.text) {
-				const safeText = c.text.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/'/g, '\'');
-				return `<span class="citation-pill" onclick="showTextRef(\`${safeText}\`, '${(c.name||'').replace(/'/g, '')}', ${c.page||1})" title="View source">${icon} ${c.name}${pageLabel}</span>`;
+				const safeText = (c.text || '').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/'/g, "\\'");
+				return `<span class="citation-pill" onclick="showTextRef(\`${safeText}\`, '${(c.name||'').replace(/'/g, "\\'")}'${c.page ? `, ${c.page}` : ''})" style="cursor:pointer" title="View excerpt">${icon} ${c.name}${pageLabel}</span>`;
 			}
+			// No content available — non-clickable
 			return `<span class="citation-pill" title="Source reference">${icon} ${c.name}${pageLabel}</span>`;
 		}).join('');
 	}
@@ -1425,6 +1423,39 @@ function getSourceIcon(sourceName) {
 
 let _pdfCurrentPage = 1;
 let _pdfTotalPages = 0;
+
+function showTextRef(text, sourceName, page) {
+	const existing = document.getElementById('textRefOverlay');
+	if (existing) existing.remove();
+
+	const overlay = document.createElement('div');
+	overlay.id = 'textRefOverlay';
+	overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9000;display:flex;align-items:center;justify-content:center';
+
+	const panel = document.createElement('div');
+	panel.style.cssText = 'width:640px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;border-radius:10px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.45);background:#f8f9fa';
+
+	const header = document.createElement('div');
+	header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#014148;color:white;font-size:13px;font-weight:600';
+	header.innerHTML = `<span>${getSourceIcon(sourceName)} ${sourceName}${page ? ` · p.${page}` : ''}</span>`;
+
+	const closeBtn = document.createElement('button');
+	closeBtn.innerHTML = '×';
+	closeBtn.style.cssText = 'background:none;border:none;color:white;font-size:20px;cursor:pointer;line-height:1;padding:0 4px';
+	closeBtn.onclick = () => overlay.remove();
+	header.appendChild(closeBtn);
+
+	const body = document.createElement('div');
+	body.style.cssText = 'flex:1;overflow-y:auto;padding:20px 24px;background:#fff;font-size:14px;line-height:1.8;color:#222;white-space:pre-wrap;font-family:Georgia,serif';
+	body.textContent = text;
+
+	panel.appendChild(header);
+	panel.appendChild(body);
+	overlay.appendChild(panel);
+	document.body.appendChild(overlay);
+	overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+}
+window.showTextRef = showTextRef;
 
 async function showBookRef(pageNumber) {
 	const overlay = document.getElementById('bookRefOverlay');
