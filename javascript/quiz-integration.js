@@ -370,7 +370,23 @@ class QuizIntegration {
         this.generateAIQuiz(topic, difficulty);
     }
 
+    async fetchQuestionBankChunks(topic) {
+        try {
+            const res = await fetch('/api/pinecone', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: `${topic} practice problems exam questions` })
+            });
+            if (!res.ok) return [];
+            const data = await res.json();
+            return (data.chunks || []).filter(c => c.text && c.text.length > 20).slice(0, 5);
+        } catch {
+            return [];
+        }
+    }
+
     async generateAIQuiz(topic, difficulty = 'easy') {
+        const loadingIndicator = document.getElementById('loadingIndicator');
         try {
             // Check if we have a sample quiz for this topic first
             const chapterKey = window.getChapterKey ? window.getChapterKey(topic) : topic.toLowerCase();
@@ -379,148 +395,72 @@ class QuizIntegration {
                 return;
             }
             
-            // Show loading with quiz-specific timing
             if (window.showLoadingForQuiz) {
                 window.showLoadingForQuiz();
-            } else {
-                const loadingIndicator = document.getElementById('loadingIndicator');
-                if (loadingIndicator) {
-                    loadingIndicator.style.display = 'flex';
-                }
+            } else if (loadingIndicator) {
+                loadingIndicator.style.display = 'flex';
             }
 
-            // Enhanced prompt for chapter-specific content with difficulty levels
-            const isChapterRequest = this.detectChapterRequest(topic);
-            let difficultyInstructions = '';
-            
-            switch(difficulty) {
-                case 'easy':
-                    difficultyInstructions = 'Focus on basic definitions, simple concepts, and straightforward applications. Questions should test fundamental understanding.';
-                    break;
-                case 'medium':
-                    difficultyInstructions = 'Include problem-solving questions that require applying concepts to solve problems. Mix conceptual and computational questions.';
-                    break;
-                case 'hard':
-                    difficultyInstructions = 'Create challenging questions that require deep understanding, multi-step problem solving, and advanced applications. Include complex scenarios and edge cases.';
-                    break;
-            }
-            
-            let promptContent;
-            
-            if (isChapterRequest) {
-                const isCombined = topic.toLowerCase().includes('combined') || topic.toLowerCase().includes('review') || topic.toLowerCase().includes('midterm') || topic.toLowerCase().includes('final');
-                
-                if (isCombined) {
-                    promptContent = `Create a 5-question multiple choice quiz covering "${topic}" from the physics textbook. Mix questions from the specified chapters/topics.
+            // Fetch question bank examples from Pinecone in parallel with nothing else yet
+            const bankChunks = await this.fetchQuestionBankChunks(topic);
+            const bankContext = bankChunks.length > 0
+                ? `\n\nHere are real exam/practice questions from the course question bank for reference. Model your questions after this style, difficulty, and format:\n${bankChunks.map(c => c.text).join('\n---\n')}`
+                : '';
+
+            const difficultyInstructions = {
+                easy: 'Focus on basic definitions, simple concepts, and straightforward applications.',
+                medium: 'Include problem-solving questions that require applying concepts. Mix conceptual and computational questions.',
+                hard: 'Create challenging multi-step problems requiring deep understanding and advanced applications.'
+            }[difficulty];
+
+            const titleSuffix = `${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`;
+            const promptContent = `Create a 5-question multiple choice quiz STRICTLY about "${topic}" from the physics textbook.
 
 DIFFICULTY: ${difficulty.toUpperCase()}
-${difficultyInstructions}
+${difficultyInstructions}${bankContext}
 
-For combined/review quizzes: Include variety from all mentioned chapters. Use LaTeX for math formulas.
-
-JSON format:
+IMPORTANT: ALL questions must be about "${topic}" ONLY. Return ONLY a JSON object:
 {
-  "title": "${topic} (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})",
+  "title": "${topic} Quiz (${titleSuffix})",
   "difficulty": "${difficulty}",
   "questions": [
     {
       "question": "Question text?",
-      "options": ["A", "B", "C", "D"],
+      "options": ["Option A", "Option B", "Option C", "Option D"],
       "correct": 0,
       "explanation": "Brief explanation"
     }
   ]
 }`;
-                } else {
-                    promptContent = `Create a 5-question multiple choice quiz STRICTLY about "${topic}" from the physics textbook.
 
-DIFFICULTY LEVEL: ${difficulty.toUpperCase()}
-${difficultyInstructions}
-
-IMPORTANT: ALL questions must be from ${topic} ONLY. Do NOT include questions from other chapters. Use LaTeX for math formulas.
-
-Return ONLY a JSON object:
-{
-  "title": "${topic} Quiz (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})",
-  "difficulty": "${difficulty}",
-  "questions": [
-    {
-      "question": "Question strictly from ${topic} only?",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correct": 0,
-      "explanation": "Brief explanation of why this answer is correct"
-    }
-  ]
-}`;
-                }
-            } else {
-                promptContent = `Create a 5-question multiple choice quiz STRICTLY about "${topic}" from the physics textbook. Use readable notation (e.g. F = ma, v² = u² + 2as) instead of complex LaTeX where possible.
-
-DIFFICULTY LEVEL: ${difficulty.toUpperCase()}
-${difficultyInstructions}
-
-IMPORTANT: ALL questions must be about ${topic} ONLY. Do not mix topics or include unrelated concepts.
-
-Return ONLY a JSON object:
-{
-  "title": "${topic} Quiz (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})",
-  "difficulty": "${difficulty}",
-  "questions": [
-    {
-      "question": "Question text here?",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correct": 0,
-      "explanation": "Brief explanation of why this answer is correct"
-    }
-  ]
-}`;
-            }
-
-            // Call your existing Gemini API
             const response = await fetch('/api/gemini', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    messages: [{
-                        role: 'user',
-                        content: promptContent
-                    }]
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: [{ role: 'user', content: promptContent }] })
             });
 
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
             const data = await response.json();
-            
-            if (loadingIndicator) {
-                loadingIndicator.style.display = 'none';
-            }
 
-            // Parse AI response and create quiz
+            if (window.hideLoading) window.hideLoading();
+            else if (loadingIndicator) loadingIndicator.style.display = 'none';
+
             try {
-                // Clean the response to extract JSON
                 let jsonStr = data.response.trim();
                 if (jsonStr.includes('```json')) {
                     jsonStr = jsonStr.split('```json')[1].split('```')[0].trim();
                 } else if (jsonStr.includes('```')) {
                     jsonStr = jsonStr.split('```')[1].split('```')[0].trim();
                 }
-                
-                const quizData = JSON.parse(jsonStr);
-                quizSystem.startQuiz(quizData);
+                quizSystem.startQuiz(JSON.parse(jsonStr));
             } catch (e) {
-                console.log('JSON parse failed, using fallback parser');
-                const fallbackQuiz = this.parseAIResponseToQuiz(data.response, topic);
-                quizSystem.startQuiz(fallbackQuiz);
+                quizSystem.startQuiz(this.parseAIResponseToQuiz(data.response, topic));
             }
         } catch (error) {
             console.error('Error generating AI quiz:', error);
             alert('Sorry, there was an error generating the quiz. Please try again.');
-            
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            if (loadingIndicator) {
-                loadingIndicator.style.display = 'none';
-            }
+            if (window.hideLoading) window.hideLoading();
+            else if (loadingIndicator) loadingIndicator.style.display = 'none';
         }
     }
 
