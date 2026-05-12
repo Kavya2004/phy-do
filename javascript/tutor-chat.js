@@ -758,6 +758,11 @@ function startProgressAnimation() {
 }
 
 function showLoadingForQuiz() {
+	if (loadingInterval) {
+		clearInterval(loadingInterval);
+		loadingInterval = null;
+	}
+
 	const loadingIndicator = document.getElementById('loadingIndicator');
 	const progressFill = document.getElementById('progressFill');
 	const loadingMessage = document.getElementById('loadingMessage');
