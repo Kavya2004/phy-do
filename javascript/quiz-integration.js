@@ -477,7 +477,7 @@ Return ONLY a JSON object:
             }
 
             // Call your existing Gemini API
-            const response = await fetch('/api/gemini.js', {
+            const response = await fetch('/api/gemini', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
