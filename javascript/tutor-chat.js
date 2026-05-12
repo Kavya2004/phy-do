@@ -1483,20 +1483,24 @@ function showTextRef(text, name, page) {
 
 window.showTextRef = showTextRef;
 
-
+function showUrlRef(url, name) {
 	const overlay = document.getElementById('bookRefOverlay');
 	const iframe = document.getElementById('bookRefIframe');
 	const title = document.getElementById('bookRefTitle');
 	const nav = document.getElementById('bookRefNav');
 	if (!overlay || !iframe) return;
 
+	const textDiv = document.getElementById('bookRefTextDiv');
+	if (textDiv) textDiv.style.display = 'none';
+
 	overlay.style.display = 'flex';
 	if (nav) nav.style.display = 'none';
 	if (title) title.textContent = name || '🔗 Reference';
+	iframe.style.display = 'block';
 
-	// Convert YouTube watch URLs to embed URLs
+	const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
 	const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-	iframe.src = ytMatch
+	iframe.src = isYoutube && ytMatch
 		? `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`
 		: url;
 }
