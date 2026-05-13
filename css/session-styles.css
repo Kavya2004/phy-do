@@ -70,6 +70,8 @@
     overflow: hidden;
     background: linear-gradient(135deg, #f6f4f2, #e8e6e4);
     padding: 8px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .session-top-row {
