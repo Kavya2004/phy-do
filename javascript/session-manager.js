@@ -1145,11 +1145,7 @@ class SessionManager {
       const chatContainer = document.querySelector(".chat-container");
       if (chatContainer) {
         const containerWidth = chatContainer.offsetWidth;
-        if (containerWidth < 600) {
-          sessionControls.style.flexDirection = "column";
-        } else {
-          sessionControls.style.flexDirection = "row";
-        }
+        sessionControls.style.flexDirection = "column";
       }
     }
 
