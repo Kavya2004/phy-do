@@ -816,16 +816,16 @@
 
 .session-controls {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 0;
     margin-bottom: 10px;
-    padding: 10px;
+    padding: 0;
     background: #f5f5f5;
     border-radius: 8px;
     border: 1px solid #ddd;
     width: 100%;
     box-sizing: border-box;
-    flex-wrap: wrap; 
-    min-width: 0; 
+    min-width: 0;
 }
 
 .session-btn {
