@@ -527,20 +527,15 @@ function addMessage(text, sender, files = [], citation = null) {
 				const embedUrl = c.url.replace('watch?v=', 'embed/').split('&')[0];
 				return `<span class="citation-pill" onclick="showMediaRef('${embedUrl}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'youtube')" style="cursor:pointer" title="Watch video">${icon} ${c.name}</span>`;
 			}
-			// Textbook (Physics2e) — too large for Drive iframe, open in new tab
-			if (/physics2e|college physics/i.test(c.name || '') && c.drive_file_id) {
+			// Textbook — too large for iframe, open in new tab
+			if (/^textbook$/i.test(c.name || '') && c.drive_file_id) {
 				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/view`;
 				return `<a class="citation-pill" href="${driveUrl}" target="_blank" rel="noopener noreferrer" title="Open textbook">${icon} ${c.name}${pageLabel}</a>`;
 			}
-			// PDF with Drive ID — show Drive iframe at the right page
+			// All other PDFs — Drive iframe at the right page
 			if (c.type === 'pdf' && c.drive_file_id) {
 				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/preview${c.page ? `?page=${c.page}` : ''}`;
 				return `<span class="citation-pill" onclick="showMediaRef('${driveUrl}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'pdf', ${c.page || 'null'})" style="cursor:pointer" title="View PDF page">${icon} ${c.name}${pageLabel}</span>`;
-			}
-			// Fallback — show text excerpt
-			if (c.text) {
-				const safeText = (c.text || '').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/'/g, "\\'");
-				return `<span class="citation-pill" onclick="showTextRef(\`${safeText}\`, '${(c.name||'').replace(/'/g, "\\'")}'${c.page ? `, ${c.page}` : ''})" style="cursor:pointer" title="View excerpt">${icon} ${c.name}${pageLabel}</span>`;
 			}
 			return `<span class="citation-pill" title="Source reference">${icon} ${c.name}${pageLabel}</span>`;
 		}).join('');
