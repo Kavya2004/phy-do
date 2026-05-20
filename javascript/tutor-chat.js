@@ -523,21 +523,21 @@ function addMessage(text, sender, files = [], citation = null) {
 			if (c.type === 'youtube' && c.embed_url) {
 				return `<span class="citation-pill" onclick="showMediaRef('${c.embed_url}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'youtube')" style="cursor:pointer" title="Watch video">${icon} ${c.name}</span>`;
 			}
-			// YouTube fallback (old data with url but no embed_url)
 			if (c.url && (c.url.includes('youtube') || c.url.includes('youtu.be'))) {
 				const embedUrl = c.url.replace('watch?v=', 'embed/').split('&')[0];
 				return `<span class="citation-pill" onclick="showMediaRef('${embedUrl}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'youtube')" style="cursor:pointer" title="Watch video">${icon} ${c.name}</span>`;
 			}
-			// PDF with Google Drive file ID — show Drive iframe at the right page
+			// Textbook (Physics2e) — too large for Drive iframe, open in new tab
+			if (/physics2e|college physics/i.test(c.name || '') && c.drive_file_id) {
+				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/view`;
+				return `<a class="citation-pill" href="${driveUrl}" target="_blank" rel="noopener noreferrer" title="Open textbook">${icon} ${c.name}${pageLabel}</a>`;
+			}
+			// PDF with Drive ID — show Drive iframe at the right page
 			if (c.type === 'pdf' && c.drive_file_id) {
-				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/preview${c.page ? `#page=${c.page}` : ''}`;
+				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/preview${c.page ? `?page=${c.page}` : ''}`;
 				return `<span class="citation-pill" onclick="showMediaRef('${driveUrl}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'pdf', ${c.page || 'null'})" style="cursor:pointer" title="View PDF page">${icon} ${c.name}${pageLabel}</span>`;
 			}
-			// Textbook — open built-in PDF viewer
-			if (/college physics/i.test(c.name || '') && c.page) {
-				return `<span class="citation-pill" onclick="showBookRef(${c.page})" style="cursor:pointer" title="Open textbook page">${icon} ${c.name}${pageLabel}</span>`;
-			}
-			// Slides/notes/exams — show the chunk text in a popup
+			// Fallback — show text excerpt
 			if (c.text) {
 				const safeText = (c.text || '').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/'/g, "\\'");
 				return `<span class="citation-pill" onclick="showTextRef(\`${safeText}\`, '${(c.name||'').replace(/'/g, "\\'")}'${c.page ? `, ${c.page}` : ''})" style="cursor:pointer" title="View excerpt">${icon} ${c.name}${pageLabel}</span>`;
