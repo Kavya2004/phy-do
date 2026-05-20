@@ -527,9 +527,11 @@ function addMessage(text, sender, files = [], citation = null) {
 				const embedUrl = c.url.replace('watch?v=', 'embed/').split('&')[0];
 				return `<span class="citation-pill" onclick="showMediaRef('${embedUrl}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'youtube')" style="cursor:pointer" title="Watch video">${icon} ${c.name}</span>`;
 			}
-			// Textbook — too large for iframe, open in new tab
-			if (/^textbook$/i.test(c.name || '') && c.drive_file_id) {
-				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/view`;
+			// Skip old chunks with no drive ID — don't show pill at all
+			if (!c.drive_file_id) return '';
+			// Textbook — open in Drive viewer (new tab)
+			if (/^textbook$/i.test(c.name || '')) {
+				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/view?usp=sharing`;
 				return `<a class="citation-pill" href="${driveUrl}" target="_blank" rel="noopener noreferrer" title="Open textbook">${icon} ${c.name}${pageLabel}</a>`;
 			}
 			// All other PDFs — Drive iframe at the right page
@@ -537,7 +539,7 @@ function addMessage(text, sender, files = [], citation = null) {
 				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/preview${c.page ? `?page=${c.page}` : ''}`;
 				return `<span class="citation-pill" onclick="showMediaRef('${driveUrl}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'pdf', ${c.page || 'null'})" style="cursor:pointer" title="View PDF page">${icon} ${c.name}${pageLabel}</span>`;
 			}
-			return `<span class="citation-pill" title="Source reference">${icon} ${c.name}${pageLabel}</span>`;
+			return '';
 		}).join('');
 	}
 
