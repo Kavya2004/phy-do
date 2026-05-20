@@ -518,14 +518,23 @@ function addMessage(text, sender, files = [], citation = null) {
 		citationHTML = citation.map(c => {
 			const pageLabel = c.page ? ` · p.${c.page}` : '';
 			const icon = getSourceIcon(c.name);
-			const isTextbook = /college physics/i.test(c.name || '');
 
-			// YouTube — open video link
-			if (c.url) {
-				return `<a class="citation-pill" href="${c.url}" target="_blank" rel="noopener noreferrer" title="Watch video">${icon} ${c.name}</a>`;
+			// YouTube — embed inline
+			if (c.type === 'youtube' && c.embed_url) {
+				return `<span class="citation-pill" onclick="showMediaRef('${c.embed_url}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'youtube')" style="cursor:pointer" title="Watch video">${icon} ${c.name}</span>`;
+			}
+			// YouTube fallback (old data with url but no embed_url)
+			if (c.url && (c.url.includes('youtube') || c.url.includes('youtu.be'))) {
+				const embedUrl = c.url.replace('watch?v=', 'embed/').split('&')[0];
+				return `<span class="citation-pill" onclick="showMediaRef('${embedUrl}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'youtube')" style="cursor:pointer" title="Watch video">${icon} ${c.name}</span>`;
+			}
+			// PDF with Google Drive file ID — show Drive iframe at the right page
+			if (c.type === 'pdf' && c.drive_file_id) {
+				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/preview${c.page ? `#page=${c.page}` : ''}`;
+				return `<span class="citation-pill" onclick="showMediaRef('${driveUrl}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'pdf', ${c.page || 'null'})" style="cursor:pointer" title="View PDF page">${icon} ${c.name}${pageLabel}</span>`;
 			}
 			// Textbook — open built-in PDF viewer
-			if (isTextbook && c.page) {
+			if (/college physics/i.test(c.name || '') && c.page) {
 				return `<span class="citation-pill" onclick="showBookRef(${c.page})" style="cursor:pointer" title="Open textbook page">${icon} ${c.name}${pageLabel}</span>`;
 			}
 			// Slides/notes/exams — show the chunk text in a popup
@@ -533,7 +542,6 @@ function addMessage(text, sender, files = [], citation = null) {
 				const safeText = (c.text || '').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/'/g, "\\'");
 				return `<span class="citation-pill" onclick="showTextRef(\`${safeText}\`, '${(c.name||'').replace(/'/g, "\\'")}'${c.page ? `, ${c.page}` : ''})" style="cursor:pointer" title="View excerpt">${icon} ${c.name}${pageLabel}</span>`;
 			}
-			// No content available — non-clickable
 			return `<span class="citation-pill" title="Source reference">${icon} ${c.name}${pageLabel}</span>`;
 		}).join('');
 	}
@@ -965,6 +973,10 @@ async function searchPhysicsTextbook(query) {
 				snippet: chunk.text.substring(0, 200),
 				content: chunk.text,
 				url: chunk.url,
+				embed_url: chunk.embed_url,
+				drive_file_id: chunk.drive_file_id,
+				file_name: chunk.file_name,
+				type: chunk.type,
 				fromPinecone: true
 			}));
 			results = [...pineconeResults, ...results];
@@ -1165,7 +1177,16 @@ async function processUserMessage(message) {
 		const extractedCitation = searchResults
 			.filter(r => r.fromPinecone)
 			.filter((r, i, arr) => arr.findIndex(x => x.title === r.title) === i) // dedupe
-			.map(r => ({ name: r.title, page: r.pageNumber || null, url: r.url || null, text: r.content || r.snippet || null }));
+			.map(r => ({
+				name: r.title,
+				page: r.pageNumber || null,
+				url: r.url || null,
+				embed_url: r.embed_url || null,
+				drive_file_id: r.drive_file_id || null,
+				file_name: r.file_name || null,
+				type: r.type || null,
+				text: r.content || r.snippet || null
+			}));
 		// Strip ALL citation formats before any rendering
 		botResponse = botResponse
 			.replace(/📖\s*Source:[^\n]*/gi, '')
@@ -1428,6 +1449,42 @@ function getSourceIcon(sourceName) {
 
 let _pdfCurrentPage = 1;
 let _pdfTotalPages = 0;
+
+function showMediaRef(embedUrl, sourceName, mediaType, page) {
+	const existing = document.getElementById('textRefOverlay');
+	if (existing) existing.remove();
+
+	const overlay = document.createElement('div');
+	overlay.id = 'textRefOverlay';
+	overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9000;display:flex;align-items:center;justify-content:center';
+
+	const panel = document.createElement('div');
+	panel.style.cssText = 'width:860px;max-width:95vw;height:560px;display:flex;flex-direction:column;border-radius:10px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.45);background:#111';
+
+	const header = document.createElement('div');
+	header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#014148;color:white;font-size:13px;font-weight:600;flex-shrink:0';
+	const pageLabel = page ? ` · p.${page}` : '';
+	header.innerHTML = `<span>${getSourceIcon(sourceName)} ${sourceName}${pageLabel}</span>`;
+
+	const closeBtn = document.createElement('button');
+	closeBtn.innerHTML = '×';
+	closeBtn.style.cssText = 'background:none;border:none;color:white;font-size:20px;cursor:pointer;line-height:1;padding:0 4px';
+	closeBtn.onclick = () => overlay.remove();
+	header.appendChild(closeBtn);
+
+	const iframe = document.createElement('iframe');
+	iframe.src = embedUrl;
+	iframe.style.cssText = 'flex:1;border:none;width:100%';
+	iframe.allow = 'autoplay; encrypted-media';
+	iframe.allowFullscreen = true;
+
+	panel.appendChild(header);
+	panel.appendChild(iframe);
+	overlay.appendChild(panel);
+	document.body.appendChild(overlay);
+	overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+}
+window.showMediaRef = showMediaRef;
 
 function showTextRef(text, sourceName, page) {
 	const existing = document.getElementById('textRefOverlay');

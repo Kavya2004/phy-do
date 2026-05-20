@@ -52,7 +52,11 @@ export default async function handler(req, res) {
             text: match.metadata?.text || match.metadata?.content || '',
             source: match.metadata?.source || 'Course Material',
             page: match.metadata?.page || null,
-            url: match.metadata?.url || null
+            url: match.metadata?.url || null,
+            embed_url: match.metadata?.embed_url || null,
+            drive_file_id: match.metadata?.drive_file_id || null,
+            file_name: match.metadata?.file_name || null,
+            type: match.metadata?.type || null
         })).filter(c => c.text);
 
         res.status(200).json({ chunks });
