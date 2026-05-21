@@ -55,7 +55,6 @@ CITATION RULE: Do NOT write any citation lines or source references in your resp
 	}
 ];
 
-let voiceEnabled = true;
 const searchCache = new Map();
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -99,12 +98,10 @@ function initializeChat() {
     initializeFileUpload();
     initializeDragDrop();
     createChatControls();
+    initializeVoiceInput();
 
     addMessage("Hi there! I'm your physics tutor! Ask me anything about physics!", 'bot');
 
-    voiceEnabled = localStorage.getItem('autoSpeech') === 'true';
-
-    setTimeout(createVoiceToggle, 1500);
     document.addEventListener('paste', handlePasteEvent);
 }
 let uploadedFiles = [];
@@ -407,29 +404,6 @@ async function getOcrFromImage(base64Image) {
 	}
 }
 
-function createVoiceToggle() {
-	const chatHeader = document.querySelector('.chat-header') || document.querySelector('h2');
-	if (!chatHeader || document.getElementById('voiceToggle')) return;
-
-	const toggleBtn = document.createElement('button');
-	toggleBtn.id = 'voiceToggle';
-	toggleBtn.innerHTML = voiceEnabled ? '🔊 Voice On' : '🔇 Voice Off';
-	toggleBtn.style.cssText = `
-		padding: 5px 10px;
-		margin-left: 10px;
-		border: 1px solid #ccc;
-		border-radius: 15px;
-		background: ${voiceEnabled ? '#337810' : '#666'};
-		color: white;
-		cursor: pointer;
-		font-size: 12px;
-		transition: all 0.3s ease;
-	`;
-	toggleBtn.addEventListener('click', toggleVoiceResponse);
-
-	chatHeader.appendChild(toggleBtn);
-}
-
 function createChatControls() {
 	const chatContainer = document.querySelector('.chat-container');
 	if (!chatContainer || document.getElementById('chatControls')) return;
@@ -476,6 +450,45 @@ function createChatControls() {
 	controlsDiv.appendChild(saveBtn);
 	controlsDiv.appendChild(summaryBtn);
 	chatContainer.insertBefore(controlsDiv, chatContainer.firstChild);
+}
+
+function initializeVoiceInput() {
+	const micBtn = document.getElementById('voiceInputBtn');
+	if (!micBtn || !('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+		if (micBtn) micBtn.style.display = 'none';
+		return;
+	}
+
+	const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+	const recognition = new SpeechRecognition();
+	recognition.continuous = false;
+	recognition.interimResults = false;
+	recognition.lang = 'en-US';
+
+	let listening = false;
+
+	recognition.onresult = (e) => {
+		const transcript = e.results[0][0].transcript;
+		const chatInput = document.getElementById('chatInput');
+		if (chatInput) chatInput.value = transcript;
+	};
+
+	recognition.onend = () => {
+		listening = false;
+		micBtn.style.background = '';
+		micBtn.title = 'Click to speak';
+	};
+
+	micBtn.addEventListener('click', () => {
+		if (listening) {
+			recognition.stop();
+		} else {
+			recognition.start();
+			listening = true;
+			micBtn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+			micBtn.title = 'Listening... click to stop';
+		}
+	});
 }
 
 function handleKeyPress(event) {
@@ -585,9 +598,6 @@ function addMessage(text, sender, files = [], citation = null) {
 		window.sessionManager.broadcastMessage(text, sender, files);
 	}
 
-	if (sender === 'bot' && window.voiceTutor) {
-		window.voiceTutor.handleBotResponse(text);
-	}
 }
 
 function viewUploadedFile(file) {
@@ -863,23 +873,6 @@ function completeLoading() {
 
 // Make function globally available
 window.showLoadingForQuiz = showLoadingForQuiz;
-function toggleVoiceResponse() {
-	voiceEnabled = !voiceEnabled;
-	localStorage.setItem('autoSpeech', voiceEnabled.toString());
-
-	const toggleBtn = document.getElementById('voiceToggle');
-	if (toggleBtn) {
-		toggleBtn.innerHTML = voiceEnabled ? '🎤' : '🔇';
-		toggleBtn.title = voiceEnabled ? 'Voice On - Click to disable' : 'Voice Off - Click to enable';
-		toggleBtn.style.background = voiceEnabled ? '#337810' : '#666';
-		toggleBtn.style.borderColor = voiceEnabled ? '#337810' : '#666';
-	}
-
-	if (!voiceEnabled && window.voiceTutor) {
-		window.voiceTutor.stopSpeaking();
-	}
-}
-
 function hasWhiteboardContent(board) {
 	const canvas = board === 'teacher' ? 
 		document.getElementById('teacherWhiteboard') : 

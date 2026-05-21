@@ -933,8 +933,7 @@ body {
 	overflow: hidden;
 }
 .chat-section {
-    width: 650px;
-    max-width: 55vw;
+    flex: 1;
     background: #ffffff;
     border-right: 1px solid #e5e7eb;
     display: flex;
@@ -1558,7 +1557,7 @@ body {
 /* Tablet and small desktop */
 @media (max-width: 1200px) {
 	.chat-section {
-		flex: 0 0 400px;
+		flex: 1;
 		min-width: 300px;
 	}
 	
@@ -1735,14 +1734,14 @@ body {
 
 .session-actions {
 	display: grid !important;
-	grid-template-columns: repeat(3, 1fr) !important;
+	grid-template-columns: repeat(4, 1fr) !important;
 	gap: 6px !important;
 	width: 100% !important;
 }
 
 .voice-controls-row {
 	display: grid !important;
-	grid-template-columns: repeat(3, 1fr) !important;
+	grid-template-columns: repeat(4, 1fr) !important;
 	gap: 6px !important;
 	width: 100% !important;
 }
@@ -1928,10 +1927,9 @@ body {
 }
 
 .chat-section {
-	flex: 0 0 650px;
+	flex: 1;
 	position: relative;
 	min-width: 280px;
-	max-width: 650px;
 }
 
 /* Whiteboard Tabs Styling */
@@ -2244,32 +2242,6 @@ body {
 	background: repeating-linear-gradient(to bottom, transparent 0px, transparent 25px, #ddd 25px, #ddd 30px);
 	border-radius: 5px;
 	z-index: 1;
-}
-
-/* Voice control styles */
-#voiceControls button:hover {
-	transform: translateY(-1px);
-	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-#voiceToggle {
-    padding: 6px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    background: white;
-    color: #374151;
-}
-
-#voiceToggle:hover {
-    background: #f3f4f6;
-    transform: translateY(-1px);
-}
-
-#voiceInputBtn.listening {
-	animation: pulse 1.5s infinite;
 }
 
 @keyframes pulse {

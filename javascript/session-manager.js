@@ -71,6 +71,9 @@ class SessionManager {
                     <button id="publicSessionsBtn" class="session-btn browse-public">
                         🌐 Browse
                     </button>
+                    <button id="customizeProfileBtn" class="session-btn customize-profile">
+                        🎨 Profile
+                    </button>
                     <button id="leaveSessionBtn" class="session-btn leave-session" style="display: none !important;">
                         🚪 Leave
                     </button>
@@ -79,17 +82,6 @@ class SessionManager {
                     </button>
                     <button id="downloadSessionBtn" class="session-btn download-session" style="display: none !important;">
                         💾 Save
-                    </button>
-                </div>
-                <div class="voice-controls-row">
-                    <button id="customizeProfileBtn" class="session-btn customize-profile">
-                        🎨 Profile
-                    </button>
-                    <button id="voiceInputBtn" class="session-btn voice-input" title="Click to speak">
-                        🎤 Speak
-                    </button>
-                    <button id="autoSpeechBtn" class="session-btn auto-speech" title="Toggle auto-speech">
-                        🔇 Speaker
                     </button>
                 </div>
             </div>
@@ -134,34 +126,10 @@ class SessionManager {
 
   setupVoiceControls() {
     const voiceInputBtn = document.getElementById("voiceInputBtn");
-    const autoSpeechBtn = document.getElementById("autoSpeechBtn");
-    const voiceSettingsBtn = document.getElementById("voiceSettingsBtn");
-
-
-    const autoSpeechEnabled = localStorage.getItem('autoSpeech') !== 'false';
-    if (autoSpeechBtn) {
-      autoSpeechBtn.innerHTML = autoSpeechEnabled ? '🔊 Speaker' : '🔇 Speaker';
-      autoSpeechBtn.classList.toggle('active', autoSpeechEnabled);
-    }
 
     voiceInputBtn?.addEventListener("click", () => {
       if (window.voiceTutor) {
         window.voiceTutor.toggleVoiceInput();
-      }
-    });
-
-    autoSpeechBtn?.addEventListener("click", () => {
-      if (window.voiceTutor) {
-        window.voiceTutor.toggleAutoSpeech();
-        const enabled = localStorage.getItem('autoSpeech') === 'true';
-        autoSpeechBtn.innerHTML = enabled ? '🔊 Speaker' : '🔇 Speaker';
-        autoSpeechBtn.classList.toggle('active', enabled);
-      }
-    });
-
-    voiceSettingsBtn?.addEventListener("click", () => {
-      if (window.voiceTutor) {
-        window.voiceTutor.toggleSettingsMenu();
       }
     });
   }
