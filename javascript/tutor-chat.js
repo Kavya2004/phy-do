@@ -1520,27 +1520,40 @@ async function showBookRef(pageNumber) {
 	overlay.style.display = 'flex';
 	if (nav) nav.style.display = 'flex';
 	if (iframe) { iframe.src = ''; iframe.style.display = 'none'; }
-	if (title) title.textContent = '📖 College Physics 2e';
+	if (title) title.textContent = '\uD83D\uDCD6 College Physics 2e';
 	_pdfCurrentPage = pageNumber;
 
 	const textDiv = getOrCreateTextDiv();
-	textDiv.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">Loading...</p>';
+	textDiv.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">Loading page...</p>';
 
-	try {
-		const res = await fetch('/api/pdf-page', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ page: pageNumber })
-		});
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const data = await res.json();
-		_pdfCurrentPage = data.page;
-		_pdfTotalPages = data.total;
-		if (label) label.textContent = `Page ${_pdfCurrentPage} / ${_pdfTotalPages}`;
-		textDiv.innerHTML = `<p>${data.text.replace(/\n/g, '<br>')}</p>`;
-	} catch (e) {
-		textDiv.innerHTML = `<p style="color:#c00">Failed to load: ${e.message}</p>`;
-	}
+	// Format page number with leading zeros to match pdftoppm output (e.g. page-0203.png)
+	const padded = String(pageNumber).padStart(4, '0');
+	const imgUrl = `/pages/page-${padded}.png`;
+
+	const img = new Image();
+	img.onload = () => {
+		textDiv.innerHTML = '';
+		img.style.cssText = 'width:100%;height:auto;display:block;';
+		textDiv.appendChild(img);
+		if (label) label.textContent = `Page ${pageNumber} / 1697`;
+	};
+	img.onerror = async () => {
+		// Image not ready yet, fall back to text
+		try {
+			const res = await fetch('/api/pdf-page', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ page: pageNumber })
+			});
+			const data = await res.json();
+			_pdfTotalPages = data.total;
+			if (label) label.textContent = `Page ${pageNumber} / ${_pdfTotalPages}`;
+			textDiv.innerHTML = `<p style="padding:20px">${data.text.replace(/\n/g, '<br>')}</p>`;
+		} catch(e) {
+			textDiv.innerHTML = `<p style="color:#c00;padding:20px">Page image not available yet.</p>`;
+		}
+	};
+	img.src = imgUrl;
 }
 
 function getOrCreateTextDiv() {
@@ -1548,7 +1561,7 @@ function getOrCreateTextDiv() {
 	if (!textDiv) {
 		textDiv = document.createElement('div');
 		textDiv.id = 'bookRefTextDiv';
-		textDiv.style.cssText = 'flex:1;overflow-y:auto;padding:24px;background:#fff;font-size:15px;line-height:1.9;color:#222;font-family:Georgia,serif;white-space:pre-wrap;';
+		textDiv.style.cssText = 'flex:1;overflow-y:auto;background:#fff;text-align:center;';
 		document.getElementById('bookRefPanel').appendChild(textDiv);
 	}
 	textDiv.style.display = 'block';

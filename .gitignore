@@ -63,3 +63,7 @@ index.php
 
 # Large files
 college-physics-2e.pdf
+Physics2e.pdf
+pages/
+index_textbook.py
+index_to_pinecone.py

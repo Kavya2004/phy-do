@@ -24,6 +24,7 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static('.'));
+app.use('/pages', express.static('pages'));
 
 // API routes
 app.post('/api/gemini', geminiHandler);
