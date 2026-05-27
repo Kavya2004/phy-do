@@ -533,6 +533,9 @@ function addMessage(text, sender, files = [], citation = null) {
 			const icon = getSourceIcon(c.name);
 			const safeName = (c.name || '').replace(/'/g, "\\'");
 
+			// Skip video/lecture link sources
+			if (/video links|lecture video/i.test(c.name || '')) return '';
+
 			// Textbook — show local page image
 			const isTextbook = /college physics|textbook|physics.?2e/i.test(c.name || '');
 			if (isTextbook && c.page) {
@@ -545,10 +548,8 @@ function addMessage(text, sender, files = [], citation = null) {
 				return `<span class="citation-pill" onclick="showDriveRef('${driveUrl}','${safeName}',${c.page||'null'})" style="cursor:pointer" title="View source">${icon} ${c.name}${pageLabel}</span>`;
 			}
 
-			// Video with URL but no drive ID — open in new tab
-			if (c.url) {
-				return `<span class="citation-pill" onclick="window.open('${c.url}','_blank')" style="cursor:pointer" title="Open source">${icon} ${c.name}${pageLabel}</span>`;
-			}
+			// Video with URL but no drive ID — skip
+			if (c.url) return '';
 
 			// Fallback — show text content
 			if (c.text) {
