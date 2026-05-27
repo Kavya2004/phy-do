@@ -10,6 +10,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PDF_PATH = process.env.PDF_PATH || join(__dirname, '..', 'Physics2e.pdf');
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+
   const page = parseInt(req.query.page || req.body?.page || 1);
   if (!page || page < 1 || page > 1697) return res.status(400).json({ error: 'Invalid page' });
 
