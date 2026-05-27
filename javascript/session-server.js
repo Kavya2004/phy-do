@@ -4,6 +4,10 @@ import { v4 as uuidv4 } from "uuid";
 import cors from "cors";
 import http from "http";
 import fetch from 'node-fetch';
+import { execFile } from 'child_process';
+import { existsSync } from 'fs';
+import { readFile, unlink } from 'fs/promises';
+import { tmpdir } from 'os';
 
 const app = express();
 const server = http.createServer(app);
@@ -64,6 +68,33 @@ app.post('/api/ocr', async (req, res) => {
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', message: 'Server is running' });
+});
+
+// PDF page image route
+const PDF_PATH = process.env.PDF_PATH || './Physics2e.pdf';
+
+app.get('/api/pdf-image', async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  const page = parseInt(req.query.page || 1);
+  if (!page || page < 1 || page > 1697) return res.status(400).json({ error: 'Invalid page' });
+  if (!existsSync(PDF_PATH)) return res.status(404).json({ error: `PDF not found at ${PDF_PATH}` });
+
+  const outPrefix = `${tmpdir()}/pdf-page-${Date.now()}-${page}`;
+  try {
+    await new Promise((resolve, reject) => {
+      execFile('pdftoppm', ['-r', '150', '-png', '-f', String(page), '-l', String(page), PDF_PATH, outPrefix],
+        (err) => err ? reject(err) : resolve());
+    });
+    const padded = String(page).padStart(4, '0');
+    const imgPath = `${outPrefix}-${padded}.png`;
+    const imgBuffer = await readFile(imgPath);
+    await unlink(imgPath).catch(() => {});
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(imgBuffer);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to render page: ' + err.message });
+  }
 });
 class TutorSession {
   constructor(sessionId, hostName, isPublic = true, sessionTitle = '') {
