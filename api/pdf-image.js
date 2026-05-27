@@ -33,8 +33,8 @@ export default async function handler(req, res) {
       ], (err) => err ? reject(err) : resolve());
     });
 
-    // pdftoppm outputs outPrefix-000001.png style
-    const padded = String(page).padStart(6, '0');
+    // pdftoppm pads based on total page count (1697 = 4 digits)
+    const padded = String(page).padStart(4, '0');
     const imgPath = `${outPrefix}-${padded}.png`;
 
     const imgBuffer = await readFile(imgPath);
