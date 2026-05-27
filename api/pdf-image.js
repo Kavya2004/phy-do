@@ -17,7 +17,10 @@ export default async function handler(req, res) {
   const page = parseInt(req.query.page || req.body?.page || 1);
   if (!page || page < 1 || page > 1697) return res.status(400).json({ error: 'Invalid page' });
 
-  if (!existsSync(PDF_PATH)) return res.status(404).json({ error: 'PDF not found on server' });
+  if (!existsSync(PDF_PATH)) {
+    console.error('PDF not found at:', PDF_PATH);
+    return res.status(404).json({ error: `PDF not found at ${PDF_PATH}` });
+  }
 
   const outPrefix = join(tmpdir(), `pdf-page-${Date.now()}-${page}`);
 
