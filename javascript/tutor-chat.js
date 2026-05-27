@@ -1536,14 +1536,15 @@ async function showBookRef(pageNumber) {
 	const imgUrl = `https://physics-ai-tutor.onrender.com/api/pdf-image?page=${pageNumber}`;
 
 	const img = new Image();
+	img.crossOrigin = 'anonymous';
 	img.onload = () => {
 		textDiv.innerHTML = '';
 		img.style.cssText = 'width:100%;height:auto;display:block;';
 		textDiv.appendChild(img);
 		if (label) label.textContent = `Page ${pageNumber} / 1697`;
 	};
-	img.onerror = async () => {
-		// Image not ready yet, fall back to text
+	img.onerror = async (e) => {
+		console.error('pdf-image failed to load:', imgUrl, e);
 		try {
 			const res = await fetch('/api/pdf-page', {
 				method: 'POST',
