@@ -531,28 +531,33 @@ function addMessage(text, sender, files = [], citation = null) {
 		citationHTML = citation.map(c => {
 			const pageLabel = c.page ? ` · p.${c.page}` : '';
 			const icon = getSourceIcon(c.name);
+			const safeName = (c.name || '').replace(/'/g, "\\'");
 
-			// YouTube — embed inline
-			if (c.type === 'youtube' && c.embed_url) {
-				return `<span class="citation-pill" onclick="showMediaRef('${c.embed_url}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'youtube')" style="cursor:pointer" title="Watch video">${icon} ${c.name}</span>`;
+			// Textbook — show local page image
+			const isTextbook = /college physics|textbook|physics.?2e/i.test(c.name || '');
+			if (isTextbook && c.page) {
+				return `<span class="citation-pill" onclick="showBookRef(${c.page})" style="cursor:pointer" title="View page ${c.page}">${icon} ${c.name}${pageLabel}</span>`;
 			}
-			if (c.url && (c.url.includes('youtube') || c.url.includes('youtu.be'))) {
-				const embedUrl = c.url.replace('watch?v=', 'embed/').split('&')[0];
-				return `<span class="citation-pill" onclick="showMediaRef('${embedUrl}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'youtube')" style="cursor:pointer" title="Watch video">${icon} ${c.name}</span>`;
+
+			// Everything else (slides, notes, YouTube) — open from Google Drive
+			if (c.drive_file_id) {
+				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/preview${c.page ? `#page=${c.page}` : ''}`;
+				return `<span class="citation-pill" onclick="showDriveRef('${driveUrl}','${safeName}',${c.page||'null'})" style="cursor:pointer" title="View source">${icon} ${c.name}${pageLabel}</span>`;
 			}
-			// Skip old chunks with no drive ID — don't show pill at all
-			if (!c.drive_file_id) return '';
-			// Textbook — open in Drive viewer (new tab)
-			if (/^textbook$/i.test(c.name || '')) {
-				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/view?usp=sharing`;
-				return `<a class="citation-pill" href="${driveUrl}" target="_blank" rel="noopener noreferrer" title="Open textbook">${icon} ${c.name}${pageLabel}</a>`;
+
+			// Video with URL but no drive ID — open in new tab
+			if (c.url) {
+				return `<span class="citation-pill" onclick="window.open('${c.url}','_blank')" style="cursor:pointer" title="Open source">${icon} ${c.name}${pageLabel}</span>`;
 			}
-			// All other PDFs — Drive iframe at the right page
-			if (c.type === 'pdf' && c.drive_file_id) {
-				const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/preview${c.page ? `?page=${c.page}` : ''}`;
-				return `<span class="citation-pill" onclick="showMediaRef('${driveUrl}', '${(c.name||'').replace(/'/g,"\\'")}'  , 'pdf', ${c.page || 'null'})" style="cursor:pointer" title="View PDF page">${icon} ${c.name}${pageLabel}</span>`;
+
+			// Fallback — show text content
+			if (c.text) {
+				const safeText = c.text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+				return `<span class="citation-pill" onclick="showTextRef('${safeText}','${safeName}',${c.page||1})" style="cursor:pointer" title="View source">${icon} ${c.name}${pageLabel}</span>`;
 			}
-			return '';
+
+			if (!c.name) return '';
+			return `<span class="citation-pill" title="Source reference">${icon} ${c.name}${pageLabel}</span>`;
 		}).join('');
 	}
 
@@ -1568,21 +1573,23 @@ function getOrCreateTextDiv() {
 	return textDiv;
 }
 
-function showTextRef(text, name, page) {
+function showDriveRef(driveUrl, name, page) {
 	const overlay = document.getElementById('bookRefOverlay');
 	const iframe = document.getElementById('bookRefIframe');
 	const title = document.getElementById('bookRefTitle');
 	const nav = document.getElementById('bookRefNav');
-	if (!overlay) return;
+	const textDiv = document.getElementById('bookRefTextDiv');
+	if (!overlay || !iframe) return;
 
+	if (textDiv) textDiv.style.display = 'none';
 	overlay.style.display = 'flex';
 	if (nav) nav.style.display = 'none';
-	if (iframe) { iframe.src = ''; iframe.style.display = 'none'; }
-	if (title) title.textContent = `${name}${page ? ' · p.' + page : ''}`;
-
-	const textDiv = getOrCreateTextDiv();
-	textDiv.textContent = text || 'No content available.';
+	if (title) title.textContent = name || 'Source';
+	iframe.style.display = 'block';
+	iframe.src = driveUrl;
 }
+
+window.showDriveRef = showDriveRef;
 
 window.showTextRef = showTextRef;
 
