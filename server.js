@@ -12,6 +12,7 @@ import pineconeHandler from './api/pinecone.js';
 import searchHandler from './api/search.js';
 import pdfContentHandler from './api/pdf-content.js';
 import pdfPageHandler from './api/pdf-page.js';
+import pdfImageHandler from './api/pdf-image.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +34,7 @@ app.post('/api/pinecone', pineconeHandler);
 app.post('/api/search', searchHandler);
 app.post('/api/pdf-content', pdfContentHandler);
 app.post('/api/pdf-page', pdfPageHandler);
+app.get('/api/pdf-image', pdfImageHandler);
 
 // ── Session store ──────────────────────────────────────────────
 const sessions = new Map();

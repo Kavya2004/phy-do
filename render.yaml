@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: physics-ai-tutor
+    runtime: node
+    buildCommand: apt-get install -y poppler-utils && npm install
+    startCommand: node server.js
+    envVars:
+      - key: PDF_PATH
+        value: /data/Physics2e.pdf
+    disk:
+      name: pdf-storage
+      mountPath: /data
+      sizeGB: 2
