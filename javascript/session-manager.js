@@ -5,6 +5,7 @@ class SessionManager {
     this.currentSession = null;
     this.isHost = false;
     this.userName = localStorage.getItem("tutorUserName") || null;
+    this.userEmail = localStorage.getItem("tutorUserEmail") || null;
     this.participants = new Map();
     this.sessionMessages = [];
     this.ws = null;
@@ -283,23 +284,10 @@ class SessionManager {
         </div>
         <div class="modal-body">
             <input type="text" id="userNameInput" placeholder="Your name..." maxlength="20">
+            <input type="email" id="userEmailInput" placeholder="UMass email (e.g., name@umass.edu)">
             <input type="text" id="sessionIdInput" placeholder="Session ID (optional)" style="display: none;">
-            <input type="text" id="sessionTitleInput" placeholder="Session title (e.g., 'Physics Basics')" maxlength="50" style="display: none;" required>
-            <div class="session-privacy" id="sessionPrivacy" style="display: none;">
-                <h4>Session Privacy</h4>
-                <div class="privacy-options">
-                    <label class="privacy-option">
-                        <input type="radio" name="sessionPrivacy" value="public" checked> 
-                        <span class="privacy-label">🌐 Public Session</span>
-                        <small>Anyone can find and join this session</small>
-                    </label>
-                    <label class="privacy-option">
-                        <input type="radio" name="sessionPrivacy" value="private"> 
-                        <span class="privacy-label">🔒 Private Session</span>
-                        <small>Only people with the session ID can join</small>
-                    </label>
-                </div>
-            </div>
+            <input type="number" id="sessionTitleInput" placeholder="Table number" min="1" max="99" style="display: none;" required>
+
             
             <div class="customization-section">
                 <h4>Choose Your Avatar</h4>
@@ -348,23 +336,30 @@ class SessionManager {
 
     const originalSessionHandler = () => {
       const userName = document.getElementById("userNameInput").value.trim();
+      const userEmail = document.getElementById("userEmailInput").value.trim();
       const sessionId = document.getElementById("sessionIdInput").value.trim();
       const sessionTitle = document.getElementById("sessionTitleInput").value.trim();     
-      const privacyRadio = document.querySelector('input[name="sessionPrivacy"]:checked');
-      const isPublic = privacyRadio ? privacyRadio.value === 'public' : true;
+      const isPublic = true;
       
       if (!userName) {
         this.showNotification("Please enter your name", "error");
         return;
       }
 
+      if (!userEmail || !userEmail.endsWith("@umass.edu")) {
+        this.showNotification("Please enter a valid @umass.edu email", "error");
+        return;
+      }
+
       this.userName = userName;
+      this.userEmail = userEmail;
       localStorage.setItem("tutorUserName", userName);
+      localStorage.setItem("tutorUserEmail", userEmail);
 
       if (sessionId) {
         this.joinSession(sessionId);
       } else {
-        this.createNewSessionWithParams(sessionTitle, isPublic);
+        this.createNewSessionWithParams(`Table ${sessionTitle}`, isPublic);
       }
 
       modal.style.display = "none";
@@ -591,22 +586,19 @@ class SessionManager {
     const title = document.getElementById("modalTitle");
     const confirmBtn = document.getElementById("confirmSessionBtn");
     const sessionInput = document.getElementById("sessionIdInput");
-    const titleInput = document.getElementById("sessionTitleInput");     
-    const privacyDiv = document.getElementById("sessionPrivacy");
+    const titleInput = document.getElementById("sessionTitleInput");
 
     if (action === "join") {
       title.textContent = "Join Session";
       confirmBtn.textContent = "Join Session";
       sessionInput.style.display = "block";
-      titleInput.style.display = "none";           
-      privacyDiv.style.display = "none"; 
+      titleInput.style.display = "none";
       sessionInput.setAttribute("placeholder", "Enter Session ID");
     } else {
       title.textContent = "Create Session";
       confirmBtn.textContent = "Create Session";
       sessionInput.style.display = "none";
-      titleInput.style.display = "block";         
-      privacyDiv.style.display = "block";          
+      titleInput.style.display = "block";
     }
 
     modal.style.display = "flex";
@@ -620,17 +612,20 @@ class SessionManager {
     const confirmBtn = document.getElementById("confirmSessionBtn");
     const sessionInput = document.getElementById("sessionIdInput");
     const titleInput = document.getElementById("sessionTitleInput");
-    const privacyDiv = document.getElementById("sessionPrivacy");
     const nameInput = document.getElementById("userNameInput");
 
     title.textContent = "Create New Session";
     confirmBtn.textContent = "Create Session";
     sessionInput.style.display = "none";
     titleInput.style.display = "block";
-    privacyDiv.style.display = "block";
     
     nameInput.value = this.userName;
     nameInput.style.display = "none";
+
+    const emailInput = document.getElementById("userEmailInput");
+    if (this.userEmail) emailInput.value = this.userEmail;
+    emailInput.style.display = "block";
+
     titleInput.focus();
     
     modal.style.display = "flex";
@@ -638,15 +633,23 @@ class SessionManager {
 
     confirmBtn.onclick = () => {
       const sessionTitle = titleInput.value.trim();
-      const privacyRadio = document.querySelector('input[name="sessionPrivacy"]:checked');
-      const isPublic = privacyRadio ? privacyRadio.value === 'public' : true;
+      const userEmail = document.getElementById("userEmailInput").value.trim();
+      const isPublic = true;
       
       if (!sessionTitle) {
-        this.showNotification("Please enter a session title", "error");
+        this.showNotification("Please enter a table number", "error");
         return;
       }
+
+      if (!userEmail || !userEmail.endsWith("@umass.edu")) {
+        this.showNotification("Please enter a valid @umass.edu email", "error");
+        return;
+      }
+
+      this.userEmail = userEmail;
+      localStorage.setItem("tutorUserEmail", userEmail);
       
-      this.createNewSessionWithParams(sessionTitle, isPublic);
+      this.createNewSessionWithParams(`Table ${sessionTitle}`, isPublic);
       modal.style.display = "none";
     };
   }
