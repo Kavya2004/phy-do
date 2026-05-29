@@ -4,8 +4,8 @@ class SessionManager {
   constructor() {
     this.currentSession = null;
     this.isHost = false;
-    this.userName = localStorage.getItem("tutorUserName") || null;
-    this.userEmail = localStorage.getItem("tutorUserEmail") || null;
+    this.userName = null;
+    this.userEmail = null;
     this.participants = new Map();
     this.sessionMessages = [];
     this.ws = null;
@@ -353,8 +353,6 @@ class SessionManager {
 
       this.userName = userName;
       this.userEmail = userEmail;
-      localStorage.setItem("tutorUserName", userName);
-      localStorage.setItem("tutorUserEmail", userEmail);
 
       if (sessionId) {
         this.joinSession(sessionId);
@@ -619,11 +617,11 @@ class SessionManager {
     sessionInput.style.display = "none";
     titleInput.style.display = "block";
     
-    nameInput.value = this.userName;
+    nameInput.value = "";
     nameInput.style.display = "none";
 
     const emailInput = document.getElementById("userEmailInput");
-    if (this.userEmail) emailInput.value = this.userEmail;
+    emailInput.value = "";
     emailInput.style.display = "block";
 
     titleInput.focus();
@@ -647,7 +645,6 @@ class SessionManager {
       }
 
       this.userEmail = userEmail;
-      localStorage.setItem("tutorUserEmail", userEmail);
       
       this.createNewSessionWithParams(`Table ${sessionTitle}`, isPublic);
       modal.style.display = "none";
@@ -1532,7 +1529,6 @@ class SessionManager {
 
       if (enteredName && enteredName !== this.userName) {
         this.userName = enteredName;
-        localStorage.setItem("tutorUserName", enteredName);
       }
 
       const selectedAvatarEl = document.querySelector(
