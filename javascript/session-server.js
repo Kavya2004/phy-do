@@ -8,6 +8,24 @@ import { execFile } from 'child_process';
 import { existsSync } from 'fs';
 import { readFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
+import mongoose from 'mongoose';
+
+// MongoDB connection
+if (process.env.MONGODB_URI) {
+  mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.error('MongoDB connection error:', err));
+}
+
+const studentSessionSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  tableNumber: { type: Number, required: true },
+  sessionId: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
+
+const StudentSession = mongoose.model('StudentSession', studentSessionSchema);
 
 const app = express();
 const server = http.createServer(app);
@@ -198,8 +216,8 @@ function broadcastToSession(sessionId, message, excludeWs = null) {
   });
 }
 
-app.post("/api/sessions/create", (req, res) => {
-  const { hostName, avatar, color, isPublic = true, sessionTitle } = req.body;  
+app.post("/api/sessions/create", async (req, res) => {
+  const { hostName, avatar, color, isPublic = true, sessionTitle, userEmail } = req.body;
 
   if (!hostName || hostName.trim().length === 0) {
     return res.status(400).json({ error: "Host name is required" });
@@ -219,6 +237,15 @@ app.post("/api/sessions/create", (req, res) => {
 
   sessions.set(sessionId, session);
   sessionConnections.set(sessionId, []);
+
+  if (userEmail && sessionTitle) {
+    const tableNumber = parseInt(sessionTitle.replace(/[^0-9]/g, ""));
+    try {
+      await StudentSession.create({ name: hostName.trim(), email: userEmail, tableNumber, sessionId });
+    } catch (err) {
+      console.error("MongoDB save error:", err);
+    }
+  }
 
   console.log(`Session created: ${sessionId} by ${hostName}`);
 
