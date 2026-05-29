@@ -216,7 +216,7 @@ function broadcastToSession(sessionId, message, excludeWs = null) {
   });
 }
 
-app.post("/api/sessions/create", async (req, res) => {
+app.post("/api/sessions/create", (req, res) => {
   const { hostName, avatar, color, isPublic = true, sessionTitle, userEmail } = req.body;
 
   if (!hostName || hostName.trim().length === 0) {
@@ -240,11 +240,8 @@ app.post("/api/sessions/create", async (req, res) => {
 
   if (userEmail && sessionTitle) {
     const tableNumber = parseInt(sessionTitle.replace(/[^0-9]/g, ""));
-    try {
-      await StudentSession.create({ name: hostName.trim(), email: userEmail, tableNumber, sessionId });
-    } catch (err) {
-      console.error("MongoDB save error:", err);
-    }
+    StudentSession.create({ name: hostName.trim(), email: userEmail, tableNumber, sessionId })
+      .catch(err => console.error("MongoDB save error:", err));
   }
 
   console.log(`Session created: ${sessionId} by ${hostName}`);
