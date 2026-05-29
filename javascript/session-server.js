@@ -13,8 +13,10 @@ import mongoose from 'mongoose';
 // MongoDB connection
 if (process.env.MONGODB_URI) {
   mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('MongoDB connected'))
-    .catch(err => console.error('MongoDB connection error:', err));
+    .then(() => console.log('MongoDB connected successfully'))
+    .catch(err => console.error('MongoDB connection error:', err.message));
+} else {
+  console.warn('MONGODB_URI not set - student data will not be saved');
 }
 
 const studentSessionSchema = new mongoose.Schema({
@@ -240,8 +242,10 @@ app.post("/api/sessions/create", (req, res) => {
 
   if (userEmail && sessionTitle) {
     const tableNumber = parseInt(sessionTitle.replace(/[^0-9]/g, ""));
+    console.log(`Saving to MongoDB: ${hostName}, ${userEmail}, table ${tableNumber}`);
     StudentSession.create({ name: hostName.trim(), email: userEmail, tableNumber, sessionId })
-      .catch(err => console.error("MongoDB save error:", err));
+      .then(() => console.log('Student session saved to MongoDB'))
+      .catch(err => console.error("MongoDB save error:", err.message));
   }
 
   console.log(`Session created: ${sessionId} by ${hostName}`);
