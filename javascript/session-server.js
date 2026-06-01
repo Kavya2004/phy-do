@@ -256,15 +256,15 @@ app.post("/api/sessions/:sessionId/join", (req, res) => {
 
   session.addParticipant(userName.trim(), avatar, color);
 
-  const { email, tableNumber } = req.body;
-  if (email && tableNumber) {
-      addStudentToSession({
-        sessionId,
-        name: userName.trim(),
-        email,
-        tableNumber: parseInt(tableNumber),
-      }).catch(err => console.error('[MongoDB] addStudent error:', err));
-    }
+  const { userEmail, tableNumber } = req.body;
+  if (userEmail && tableNumber) {
+    addStudentToSession({
+      sessionId,
+      name: userName.trim(),
+      email: userEmail,
+      tableNumber: parseInt(tableNumber),
+    }).catch(err => console.error('[MongoDB] addStudent error:', err));
+  }
 
   console.log(`${userName} joined session: ${sessionId}`);
 
@@ -272,6 +272,15 @@ app.post("/api/sessions/:sessionId/join", (req, res) => {
     message: "Joined session successfully",
     session: session.toJSON(),
   });
+});
+
+app.get("/api/sessions/by-table/:tableNumber", (req, res) => {
+  const tableNumber = Number(req.params.tableNumber);
+  const session = Array.from(sessions.values()).find(
+    s => s.sessionTitle === `Table ${tableNumber}`
+  );
+  if (!session) return res.status(404).json({ error: `No active session found for Table ${tableNumber}` });
+  res.json({ sessionId: session.sessionId, sessionTitle: session.sessionTitle });
 });
 
 app.get("/api/sessions/public", (req, res) => {
@@ -528,6 +537,57 @@ setInterval(
   },
   60 * 60 * 1000,
 ); 
+
+app.get("/dashboard", async (req, res) => {
+  try {
+    const connected = await connectMongo();
+    if (!connected) return res.status(503).send('<h2>MongoDB not connected</h2>');
+    const { Session } = await import('../config/mongodb.js');
+    const allSessions = await Session.find().sort({ createdAt: -1 }).lean();
+    const rows = allSessions.flatMap(s =>
+      s.students.length === 0
+        ? [{ session: s.sessionTitle, date: s.createdAt, name: '—', email: '—', table: '—' }]
+        : s.students.map(st => ({ session: s.sessionTitle, date: s.createdAt, name: st.name, email: st.email, table: st.tableNumber }))
+    );
+    const tableRows = rows.map(r => `
+      <tr>
+        <td>${r.session}</td>
+        <td>${new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+        <td>${r.name}</td>
+        <td>${r.email}</td>
+        <td>${r.table}</td>
+      </tr>`).join('');
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Session Attendance</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 32px; background: #f5f7fa; color: #333; }
+    h1 { margin-bottom: 8px; }
+    p.subtitle { color: #666; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    th { background: #4a6cf7; color: white; padding: 12px 16px; text-align: left; }
+    td { padding: 11px 16px; border-bottom: 1px solid #f0f0f0; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8f9ff; }
+    .refresh { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #4a6cf7; color: white; border-radius: 6px; text-decoration: none; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>📋 Session Attendance</h1>
+  <p class="subtitle">Last updated: ${new Date().toLocaleString()}</p>
+  <a class="refresh" href="/dashboard">🔄 Refresh</a>
+  <table>
+    <thead><tr><th>Session</th><th>Date</th><th>Name</th><th>Email</th><th>Table #</th></tr></thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+</body>
+</html>`);
+  } catch (err) {
+    res.status(500).send(`<h2>Error: ${err.message}</h2>`);
+  }
+});
 
 const PORT = process.env.PORT || 5001;
 connectMongo();
