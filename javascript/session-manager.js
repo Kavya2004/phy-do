@@ -487,108 +487,50 @@ class SessionManager {
   }
 
   showJoinModal() {
-    if (!this.userName) {
-      this.showNameModal("join");
-      return;
-    }
-
-    this.showSessionIdModal();
-  }
-
-  showSessionIdModal() {
     const modal = document.createElement("div");
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-    `;
-    
+    modal.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;`;
     modal.innerHTML = `
-      <div style="
-        background: white;
-        padding: 24px;
-        border-radius: 12px;
-        max-width: 400px;
-        width: 90%;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-      ">
-        <h3 style="margin: 0 0 8px 0; color: #333; font-size: 18px;">Join Session</h3>
-        <p style="margin: 0 0 16px 0; color: #666; font-size: 14px;">Enter your table number to join:</p>
-        <input type="number" id="tableNumberPrompt" placeholder="Table number" min="1" max="99" style="
-          width: 100%;
-          padding: 12px;
-          border: 2px solid #e9ecef;
-          border-radius: 8px;
-          font-size: 14px;
-          margin-bottom: 20px;
-          box-sizing: border-box;
-          outline: none;
-        " autofocus>
-        <div style="display: flex; gap: 12px; justify-content: flex-end;">
-          <button onclick="this.closest('div').parentElement.remove()" style="
-            background: #6c757d;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-          ">Cancel</button>
-          <button id="joinSessionConfirm" style="
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-          ">Join</button>
+      <div style="background:white;padding:24px;border-radius:12px;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+        <h3 style="margin:0 0 16px 0;color:#333;font-size:18px;">Join Session</h3>
+        <input type="text" id="joinNameInput" placeholder="Your name" maxlength="20" style="width:100%;padding:12px;border:2px solid #e9ecef;border-radius:8px;font-size:14px;margin-bottom:12px;box-sizing:border-box;outline:none;">
+        <input type="email" id="joinEmailInput" placeholder="UMass email (name@umass.edu)" style="width:100%;padding:12px;border:2px solid #e9ecef;border-radius:8px;font-size:14px;margin-bottom:12px;box-sizing:border-box;outline:none;">
+        <input type="number" id="joinTableInput" placeholder="Table number" min="1" max="99" style="width:100%;padding:12px;border:2px solid #e9ecef;border-radius:8px;font-size:14px;margin-bottom:20px;box-sizing:border-box;outline:none;">
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+          <button id="joinCancelBtn" style="background:#6c757d;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;">Cancel</button>
+          <button id="joinConfirmBtn" style="background:#007bff;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;">Join</button>
         </div>
       </div>
     `;
-    
     document.body.appendChild(modal);
-    
-    const tableInput = modal.querySelector('#tableNumberPrompt');
-    const joinBtn = modal.querySelector('#joinSessionConfirm');
-    
+
+    modal.querySelector('#joinCancelBtn').onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
     const handleJoin = async () => {
-      const tableNumber = Number(tableInput.value);
-      if (!tableNumber || tableNumber < 1) {
-        this.showNotification("Please enter your table number", "error");
-        return;
-      }
+      const name = modal.querySelector('#joinNameInput').value.trim();
+      const email = modal.querySelector('#joinEmailInput').value.trim();
+      const tableNumber = Number(modal.querySelector('#joinTableInput').value);
+
+      if (!name) { this.showNotification("Please enter your name", "error"); return; }
+      if (!email || !email.endsWith("@umass.edu")) { this.showNotification("Please enter a valid @umass.edu email", "error"); return; }
+      if (!tableNumber || tableNumber < 1) { this.showNotification("Please enter your table number", "error"); return; }
+
       try {
         const res = await fetch(`${BACKEND_URL}/api/sessions/by-table/${tableNumber}`);
-        if (!res.ok) {
-          this.showNotification(`No active session found for Table ${tableNumber}`, "error");
-          return;
-        }
+        if (!res.ok) { this.showNotification(`No active session found for Table ${tableNumber}`, "error"); return; }
         const { sessionId } = await res.json();
+        this.userName = name;
+        this.userEmail = email;
         this.joinSession(sessionId, tableNumber);
         modal.remove();
       } catch (err) {
         this.showNotification("Failed to find session. Please try again.", "error");
       }
     };
-    
-    joinBtn.onclick = handleJoin;
-    tableInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') handleJoin();
-    });
-    
-    modal.onclick = (e) => {
-      if (e.target === modal) modal.remove();
-    };
-    
-    setTimeout(() => tableInput.focus(), 100);
+
+    modal.querySelector('#joinConfirmBtn').onclick = handleJoin;
+    modal.querySelector('#joinTableInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleJoin(); });
+    setTimeout(() => modal.querySelector('#joinNameInput').focus(), 100);
   }
 
   showNameModal(action) {
