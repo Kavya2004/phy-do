@@ -253,21 +253,10 @@ class SessionManager {
     sessionItems.forEach(item => {
       item.addEventListener('click', () => {
         const sessionId = item.dataset.sessionId;
+        const sessionTitle = item.querySelector('.session-title')?.textContent || '';
+        const tableNumber = sessionTitle.replace('Table ', '').trim();
         document.getElementById('publicSessionsModal').remove();
-        
-        // Update URL
-        const url = new URL(window.location);
-        url.searchParams.set('session', sessionId);
-        window.history.pushState({}, '', url);
-        
-        if (!this.userName) {
-          this.showNameModal("join");
-          setTimeout(() => {
-            document.getElementById("sessionIdInput").value = sessionId;
-          }, 100);
-        } else {
-          this.joinSession(sessionId);
-        }
+        this.showJoinModal(tableNumber);
       });
     });
   }
@@ -486,7 +475,7 @@ class SessionManager {
     }
   }
 
-  showJoinModal() {
+  showJoinModal(prefillTable = '') {
     const modal = document.createElement("div");
     modal.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;`;
     modal.innerHTML = `
@@ -530,7 +519,10 @@ class SessionManager {
 
     modal.querySelector('#joinConfirmBtn').onclick = handleJoin;
     modal.querySelector('#joinTableInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleJoin(); });
-    setTimeout(() => modal.querySelector('#joinNameInput').focus(), 100);
+    setTimeout(() => {
+      modal.querySelector('#joinNameInput').focus();
+      if (prefillTable) modal.querySelector('#joinTableInput').value = prefillTable;
+    }, 100);
   }
 
   showNameModal(action) {
