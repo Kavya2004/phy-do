@@ -511,19 +511,24 @@ class SessionManager {
       const email = modal.querySelector('#joinEmailInput').value.trim();
       const tableNumber = Number(modal.querySelector('#joinTableInput').value);
 
+      console.log('[Join] name:', name, 'email:', email, 'table:', tableNumber);
+
       if (!name) { this.showNotification("Please enter your name", "error"); return; }
       if (!email || !email.endsWith("@umass.edu")) { this.showNotification("Please enter a valid @umass.edu email", "error"); return; }
       if (!tableNumber || tableNumber < 1) { this.showNotification("Please enter your table number", "error"); return; }
 
       try {
         const res = await fetch(`${BACKEND_URL}/api/sessions/by-table/${tableNumber}`);
+        console.log('[Join] by-table status:', res.status);
         if (!res.ok) { this.showNotification(`No active session found for Table ${tableNumber}`, "error"); return; }
         const { sessionId } = await res.json();
+        console.log('[Join] found sessionId:', sessionId);
         this.userName = name;
         this.userEmail = email;
         this.joinSession(sessionId, tableNumber);
         modal.remove();
       } catch (err) {
+        console.error('[Join] error:', err);
         this.showNotification("Failed to find session. Please try again.", "error");
       }
     };
@@ -628,6 +633,7 @@ class SessionManager {
           }),
         },
       );
+      console.log('[joinSession] sent userEmail:', this.userEmail, 'tableNumber:', tableNumber);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
