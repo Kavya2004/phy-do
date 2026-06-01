@@ -13,7 +13,7 @@ import searchHandler from './api/search.js';
 import pdfContentHandler from './api/pdf-content.js';
 import pdfPageHandler from './api/pdf-page.js';
 import pdfImageHandler from './api/pdf-image.js';
-import { connectMongo } from './config/mongodb.js';
+import { connectMongo, createSessionRecord, addStudentToSession } from './config/mongodb.js';
 import sessionDbRouter from './api/sessions-db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -78,6 +78,15 @@ app.post('/api/sessions/create', (req, res) => {
     sessionConnections.set(sessionId, []);
 
     console.log(`Session created: ${sessionId} by ${hostName}`);
+
+    // Persist to MongoDB
+    createSessionRecord({
+      sessionId,
+      sessionTitle: sessionTitle || '',
+      hostName: hostName.trim(),
+      hostEmail: userEmail || '',
+    }).catch(err => console.error('[MongoDB] Failed to persist session:', err.message));
+
     res.json({ sessionId, message: 'Session created successfully', session: serializeSession(session) });
 });
 
@@ -91,7 +100,29 @@ app.post('/api/sessions/:sessionId/join', (req, res) => {
     if (session.participants.has(userName.trim())) return res.status(400).json({ error: 'User name already taken' });
     session.participants.set(userName.trim(), { userName: userName.trim(), avatar: avatar || '👤', color: color || '#6c757d', isHost: false, joinedAt: new Date() });
     session.lastActivity = new Date();
+
+    // Persist student to MongoDB
+    const { userEmail: studentEmail, tableNumber } = req.body;
+    if (studentEmail) {
+      addStudentToSession({
+        sessionId,
+        name: userName.trim(),
+        email: studentEmail,
+        tableNumber: Number(tableNumber) || 0,
+      }).catch(err => console.error('[MongoDB] Failed to add student:', err.message));
+    }
+
     res.json({ message: 'Joined successfully', session: serializeSession(session) });
+});
+
+// Find session by table number
+app.get('/api/sessions/by-table/:tableNumber', (req, res) => {
+    const tableNumber = Number(req.params.tableNumber);
+    const session = Array.from(sessions.values()).find(
+        s => s.sessionTitle === `Table ${tableNumber}`
+    );
+    if (!session) return res.status(404).json({ error: `No active session found for Table ${tableNumber}` });
+    res.json({ sessionId: session.sessionId, sessionTitle: session.sessionTitle });
 });
 
 // Public sessions
@@ -200,6 +231,63 @@ wss.on('connection', (ws, req) => {
 // Serve the main page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'tutor.html'));
+});
+
+// Dashboard – all session attendance
+app.get('/dashboard', async (req, res) => {
+    try {
+        const connected = await connectMongo();
+        if (!connected) return res.status(503).send('<h2>MongoDB not connected</h2>');
+
+        const { Session } = await import('./config/mongodb.js');
+        const allSessions = await Session.find().sort({ createdAt: -1 }).lean();
+
+        const rows = allSessions.flatMap(s =>
+            s.students.length === 0
+                ? [{ session: s.sessionTitle, date: s.createdAt, name: '—', email: '—', table: '—' }]
+                : s.students.map(st => ({ session: s.sessionTitle, date: s.createdAt, name: st.name, email: st.email, table: st.tableNumber }))
+        );
+
+        const tableRows = rows.map(r => `
+            <tr>
+                <td>${r.session}</td>
+                <td>${new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                <td>${r.name}</td>
+                <td>${r.email}</td>
+                <td>${r.table}</td>
+            </tr>`).join('');
+
+        res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session Attendance</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 32px; background: #f5f7fa; color: #333; }
+    h1 { margin-bottom: 8px; }
+    p.subtitle { color: #666; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    th { background: #4a6cf7; color: white; padding: 12px 16px; text-align: left; font-weight: 600; }
+    td { padding: 11px 16px; border-bottom: 1px solid #f0f0f0; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8f9ff; }
+    .refresh { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #4a6cf7; color: white; border-radius: 6px; text-decoration: none; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>📋 Session Attendance</h1>
+  <p class="subtitle">Last updated: ${new Date().toLocaleString()}</p>
+  <a class="refresh" href="/dashboard">🔄 Refresh</a>
+  <table>
+    <thead><tr><th>Session</th><th>Date</th><th>Name</th><th>Email</th><th>Table #</th></tr></thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+</body>
+</html>`);
+    } catch (err) {
+        res.status(500).send(`<h2>Error: ${err.message}</h2>`);
+    }
 });
 
 connectMongo();

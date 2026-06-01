@@ -519,9 +519,9 @@ class SessionManager {
         width: 90%;
         box-shadow: 0 8px 32px rgba(0,0,0,0.2);
       ">
-        <h3 style="margin: 0 0 16px 0; color: #333; font-size: 18px;">Join Session</h3>
-        <p style="margin: 0 0 16px 0; color: #666;">Enter the Session ID to join:</p>
-        <input type="text" id="sessionIdPrompt" placeholder="Session ID" style="
+        <h3 style="margin: 0 0 8px 0; color: #333; font-size: 18px;">Join Session</h3>
+        <p style="margin: 0 0 16px 0; color: #666; font-size: 14px;">Enter your table number to join:</p>
+        <input type="number" id="tableNumberPrompt" placeholder="Table number" min="1" max="99" style="
           width: 100%;
           padding: 12px;
           border: 2px solid #e9ecef;
@@ -556,21 +556,31 @@ class SessionManager {
     
     document.body.appendChild(modal);
     
-    const input = modal.querySelector('#sessionIdPrompt');
+    const tableInput = modal.querySelector('#tableNumberPrompt');
     const joinBtn = modal.querySelector('#joinSessionConfirm');
     
-    const handleJoin = () => {
-      const sessionId = input.value.trim();
-      if (sessionId) {
-        this.joinSession(sessionId);
+    const handleJoin = async () => {
+      const tableNumber = Number(tableInput.value);
+      if (!tableNumber || tableNumber < 1) {
+        this.showNotification("Please enter your table number", "error");
+        return;
+      }
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/sessions/by-table/${tableNumber}`);
+        if (!res.ok) {
+          this.showNotification(`No active session found for Table ${tableNumber}`, "error");
+          return;
+        }
+        const { sessionId } = await res.json();
+        this.joinSession(sessionId, tableNumber);
         modal.remove();
-      } else {
-        this.showNotification("Please enter a Session ID", "error");
+      } catch (err) {
+        this.showNotification("Failed to find session. Please try again.", "error");
       }
     };
     
     joinBtn.onclick = handleJoin;
-    input.addEventListener('keypress', (e) => {
+    tableInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') handleJoin();
     });
     
@@ -578,7 +588,7 @@ class SessionManager {
       if (e.target === modal) modal.remove();
     };
     
-    setTimeout(() => input.focus(), 100);
+    setTimeout(() => tableInput.focus(), 100);
   }
 
   showNameModal(action) {
@@ -653,7 +663,7 @@ class SessionManager {
     };
   }
 
-  async joinSession(sessionId) {
+  async joinSession(sessionId, tableNumber = 0) {
     if (!this.userName || this.userName.trim().length === 0) {
       this.showNotification("Please enter your name first", "error");
       this.showNameModal("join");
@@ -670,6 +680,8 @@ class SessionManager {
             userName: this.userName.trim(),
             avatar: this.selectedAvatar || "👤",
             color: this.selectedColor || "#6c757d",
+            userEmail: this.userEmail || "",
+            tableNumber: tableNumber,
             timestamp: new Date().toISOString(),
           }),
         },
