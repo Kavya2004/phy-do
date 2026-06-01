@@ -712,7 +712,7 @@ class SessionManager {
     this.heartbeatInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         // Check if connection is stale
-        if (Date.now() - this.lastPingTime > 60000) { // 1 minute
+        if (Date.now() - this.lastPingTime > 90 * 60 * 1000) { // 1.5 hours
           this.ws.close();
           return;
         }
