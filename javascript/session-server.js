@@ -251,10 +251,11 @@ app.post("/api/sessions/:sessionId/join", (req, res) => {
   }
 
   if (session.participants.has(userName.trim())) {
-    return res.status(400).json({ error: "User name already taken in this session" });
+    // already in session, just update and allow rejoin
+    session.addParticipant(userName.trim(), avatar, color);
+  } else {
+    session.addParticipant(userName.trim(), avatar, color);
   }
-
-  session.addParticipant(userName.trim(), avatar, color);
 
   const { userEmail, tableNumber } = req.body;
   if (userEmail && tableNumber) {
