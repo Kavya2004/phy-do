@@ -728,11 +728,13 @@ class SessionManager {
       this.ws.close();
     }
 
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     this.ws = new WebSocket(`wss://physics-ai-tutor.onrender.com/sessions/${this.sessionId}`);
     this.lastPingTime = Date.now();
+    this._reconnectAttempts = (this._reconnectAttempts || 0);
 
     this.ws.onopen = () => {
+      this._reconnectAttempts = 0;
+      this._everConnected = true;
       this.ws.send(
         JSON.stringify({
           type: "join",
@@ -742,8 +744,6 @@ class SessionManager {
           isHost: this.isHost,
         }),
       );
-      
-      // Start heartbeat
       this.startHeartbeat();
     };
 
@@ -760,13 +760,17 @@ class SessionManager {
     this.ws.onclose = () => {
       this.stopHeartbeat();
       if (this.sessionId) {
-        setTimeout(() => this.connectToSession(), 3000); 
+        this._reconnectAttempts++;
+        const delay = Math.min(1000 * 2 ** this._reconnectAttempts, 30000);
+        setTimeout(() => this.connectToSession(), delay);
       }
     };
 
-    this.ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      this.showNotification("Connection failed. Reconnecting...", "error");
+    this.ws.onerror = () => {
+      // onclose will fire right after and handle reconnection
+      if (this._everConnected && this._reconnectAttempts === 0) {
+        this.showNotification("Connection lost. Reconnecting...", "error");
+      }
     };
   }
   
