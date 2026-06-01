@@ -27,7 +27,7 @@ class QuizIntegration {
             const style = document.createElement('style');
             style.textContent = `
                 .quiz-trigger-btn {
-                    background: #337810 !important;
+                    background: #881c1c !important;
                     color: white !important;
                     border: none;
                     padding: 10px 15px;
@@ -38,9 +38,9 @@ class QuizIntegration {
                     transition: all 0.2s ease;
                 }
                 .quiz-trigger-btn:hover {
-                    background: #2a6209 !important;
+                    background: #6e1616 !important;
                     transform: translateY(-1px);
-                    box-shadow: 0 4px 12px rgba(51, 120, 16, 0.3);
+                    box-shadow: 0 4px 12px rgba(136, 28, 28, 0.3);
                 }
                 .quiz-menu {
                     position: absolute;
@@ -197,7 +197,7 @@ class QuizIntegration {
             }
             .topic-popup-content h3 {
                 margin: 0 0 15px 0;
-                color: #337810;
+                color: #881c1c;
                 text-align: center;
             }
             .topic-popup-content p {
@@ -215,7 +215,7 @@ class QuizIntegration {
                 box-sizing: border-box;
             }
             #topicInput:focus {
-                border-color: #337810;
+                border-color: #881c1c;
                 outline: none;
             }
             .chapter-selection {
@@ -255,10 +255,10 @@ class QuizIntegration {
             }
             .chapter-checkboxes label:hover {
                 background: #e9ecef;
-                border-color: #337810;
+                border-color: #881c1c;
             }
             .chapter-checkboxes input[type="checkbox"]:checked + span {
-                color: #337810;
+                color: #881c1c;
                 font-weight: 600;
             }
             .chapter-checkboxes input[type="checkbox"] {
@@ -298,7 +298,7 @@ class QuizIntegration {
                 font-weight: 600;
                 margin-right: 8px;
             }
-            .difficulty-label.easy { color: #28a745; }
+            .difficulty-label.easy { color: #881c1c; }
             .difficulty-label.medium { color: #ffc107; }
             .difficulty-label.hard { color: #dc3545; }
             .difficulty-option small {
@@ -326,11 +326,11 @@ class QuizIntegration {
                 background: #e9ecef;
             }
             .topic-btn-primary {
-                background: #337810;
+                background: #881c1c;
                 color: white;
             }
             .topic-btn-primary:hover {
-                background: #2a6209;
+                background: #6e1616;
             }
         `;
         document.head.appendChild(style);

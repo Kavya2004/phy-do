@@ -425,7 +425,7 @@ function createChatControls() {
 		padding: 6px 12px;
 		border: 1px solid #ddd;
 		border-radius: 15px;
-		background: #337810;
+		background: #881c1c;
 		color: white;
 		cursor: pointer;
 		font-size: 12px;
@@ -439,7 +439,7 @@ function createChatControls() {
 		padding: 6px 12px;
 		border: 1px solid #ddd;
 		border-radius: 15px;
-		background: #014148;
+		background: #881c1c;
 		color: white;
 		cursor: pointer;
 		font-size: 12px;

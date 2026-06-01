@@ -13,6 +13,8 @@ import searchHandler from './api/search.js';
 import pdfContentHandler from './api/pdf-content.js';
 import pdfPageHandler from './api/pdf-page.js';
 import pdfImageHandler from './api/pdf-image.js';
+import { connectMongo } from './config/mongodb.js';
+import sessionDbRouter from './api/sessions-db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +37,7 @@ app.post('/api/search', searchHandler);
 app.post('/api/pdf-content', pdfContentHandler);
 app.post('/api/pdf-page', pdfPageHandler);
 app.get('/api/pdf-image', pdfImageHandler);
+app.use('/api/db', sessionDbRouter);
 
 // ── Session store ──────────────────────────────────────────────
 const sessions = new Map();
@@ -55,7 +58,7 @@ function broadcastToSession(sessionId, message, excludeWs = null) {
 
 // Create session
 app.post('/api/sessions/create', (req, res) => {
-    const { hostName, avatar, color, isPublic = true, sessionTitle } = req.body;
+    const { hostName, avatar, color, isPublic = true, sessionTitle, userEmail } = req.body;
     if (!hostName || !hostName.trim()) {
         return res.status(400).json({ error: 'Host name is required' });
     }
@@ -73,6 +76,7 @@ app.post('/api/sessions/create', (req, res) => {
     };
     sessions.set(sessionId, session);
     sessionConnections.set(sessionId, []);
+
     console.log(`Session created: ${sessionId} by ${hostName}`);
     res.json({ sessionId, message: 'Session created successfully', session: serializeSession(session) });
 });
@@ -197,6 +201,8 @@ wss.on('connection', (ws, req) => {
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'tutor.html'));
 });
+
+connectMongo();
 
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
