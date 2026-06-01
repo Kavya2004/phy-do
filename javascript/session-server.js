@@ -558,6 +558,9 @@ app.get("/dashboard", async (req, res) => {
         <td>${r.email}</td>
         <td>${r.table}</td>
       </tr>`).join('');
+    const csvRows = [['Session','Date','Name','Email','Table'],
+      ...rows.map(r => [r.session, new Date(r.date).toLocaleDateString(), r.name, r.email, r.table])
+    ].map(r => r.join(',')).join('\n');
     res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -566,23 +569,83 @@ app.get("/dashboard", async (req, res) => {
   <style>
     body { font-family: Arial, sans-serif; padding: 32px; background: #f5f7fa; color: #333; }
     h1 { margin-bottom: 8px; }
-    p.subtitle { color: #666; margin-bottom: 24px; }
+    p.subtitle { color: #666; margin-bottom: 16px; }
+    .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+    input#search { padding: 8px 12px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px; width: 220px; outline: none; }
+    a.btn, button.btn { display: inline-block; padding: 8px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; border: none; text-decoration: none; }
+    .btn-blue { background: #4a6cf7; color: white; }
+    .btn-green { background: #28a745; color: white; }
     table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    th { background: #4a6cf7; color: white; padding: 12px 16px; text-align: left; }
+    th { background: #4a6cf7; color: white; padding: 12px 16px; text-align: left; cursor: pointer; user-select: none; white-space: nowrap; }
+    th:hover { background: #3a5ce6; }
+    th .arrow { margin-left: 6px; opacity: 0.6; font-size: 11px; }
     td { padding: 11px 16px; border-bottom: 1px solid #f0f0f0; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #f8f9ff; }
-    .refresh { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #4a6cf7; color: white; border-radius: 6px; text-decoration: none; font-size: 14px; }
+    .no-results { text-align: center; padding: 24px; color: #999; }
   </style>
 </head>
 <body>
   <h1>📋 Session Attendance</h1>
   <p class="subtitle">Last updated: ${new Date().toLocaleString()}</p>
-  <a class="refresh" href="/dashboard">🔄 Refresh</a>
-  <table>
-    <thead><tr><th>Session</th><th>Date</th><th>Name</th><th>Email</th><th>Table #</th></tr></thead>
-    <tbody>${tableRows}</tbody>
+  <div class="toolbar">
+    <a class="btn btn-blue" href="/dashboard">🔄 Refresh</a>
+    <button class="btn btn-green" onclick="exportCSV()">⬇️ Export CSV</button>
+    <input id="search" placeholder="Search name, email, session..." oninput="filterTable(this.value)">
+  </div>
+  <table id="mainTable">
+    <thead><tr>
+      <th onclick="sortTable(0)">Session <span class="arrow">↕</span></th>
+      <th onclick="sortTable(1)">Date <span class="arrow">↕</span></th>
+      <th onclick="sortTable(2)">Name <span class="arrow">↕</span></th>
+      <th onclick="sortTable(3)">Email <span class="arrow">↕</span></th>
+      <th onclick="sortTable(4)">Table # <span class="arrow">↕</span></th>
+    </tr></thead>
+    <tbody id="tableBody">${tableRows}</tbody>
   </table>
+  <script>
+    const csvData = ${JSON.stringify(csvRows)};
+    let sortDir = {};
+
+    function sortTable(col) {
+      const tbody = document.getElementById('tableBody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      sortDir[col] = !sortDir[col];
+      rows.sort((a, b) => {
+        const aVal = a.cells[col].textContent.trim();
+        const bVal = b.cells[col].textContent.trim();
+        const n = col === 4 ? Number(aVal) - Number(bVal) : aVal.localeCompare(bVal);
+        return sortDir[col] ? n : -n;
+      });
+      rows.forEach(r => tbody.appendChild(r));
+      document.querySelectorAll('th .arrow').forEach((a, i) => {
+        a.textContent = i === col ? (sortDir[col] ? '↑' : '↓') : '↕';
+      });
+    }
+
+    function filterTable(q) {
+      const rows = document.querySelectorAll('#tableBody tr');
+      const lower = q.toLowerCase();
+      let any = false;
+      rows.forEach(r => {
+        const match = r.textContent.toLowerCase().includes(lower);
+        r.style.display = match ? '' : 'none';
+        if (match) any = true;
+      });
+      let noRes = document.getElementById('noResults');
+      if (!any) {
+        if (!noRes) { noRes = document.createElement('tr'); noRes.id = 'noResults'; noRes.innerHTML = '<td colspan="5" class="no-results">No results found</td>'; document.getElementById('tableBody').appendChild(noRes); }
+      } else if (noRes) noRes.remove();
+    }
+
+    function exportCSV() {
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'attendance-${new Date().toISOString().split('T')[0]}.csv';
+      a.click();
+    }
+  </script>
 </body>
 </html>`);
   } catch (err) {
