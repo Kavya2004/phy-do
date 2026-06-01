@@ -545,11 +545,11 @@ app.get("/dashboard", async (req, res) => {
     if (!connected) return res.status(503).send('<h2>MongoDB not connected</h2>');
     const { Session } = await import('../config/mongodb.js');
     const allSessions = await Session.find().sort({ createdAt: -1 }).lean();
-    const rows = allSessions.flatMap(s =>
-      s.students.length === 0
-        ? [{ session: s.sessionTitle, date: s.createdAt, name: '—', email: '—', table: '—' }]
-        : s.students.map(st => ({ session: s.sessionTitle, date: s.createdAt, name: st.name, email: st.email, table: st.tableNumber }))
-    );
+    const rows = allSessions.flatMap(s => {
+      const creator = { session: s.sessionTitle, date: s.createdAt, name: s.createdBy.name, email: s.createdBy.email, table: s.sessionTitle.replace('Table ', '') };
+      if (s.students.length === 0) return [creator];
+      return [creator, ...s.students.map(st => ({ session: s.sessionTitle, date: s.createdAt, name: st.name, email: st.email, table: st.tableNumber }))];
+    });
     const tableRows = rows.map(r => `
       <tr>
         <td>${r.session}</td>
