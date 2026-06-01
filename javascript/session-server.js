@@ -8,26 +8,7 @@ import { execFile } from 'child_process';
 import { existsSync } from 'fs';
 import { readFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
-import mongoose from 'mongoose';
-
-// MongoDB connection
-if (process.env.MONGODB_URI) {
-  mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('MongoDB connected successfully'))
-    .catch(err => console.error('MongoDB connection error:', err.message));
-} else {
-  console.warn('MONGODB_URI not set - student data will not be saved');
-}
-
-const studentSessionSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true },
-  tableNumber: { type: Number, required: true },
-  sessionId: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now },
-});
-
-const StudentSession = mongoose.model('StudentSession', studentSessionSchema);
+import { connectMongo, createSessionRecord, addStudentToSession } from '../config/mongodb.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -240,13 +221,12 @@ app.post("/api/sessions/create", (req, res) => {
   sessions.set(sessionId, session);
   sessionConnections.set(sessionId, []);
 
-  if (userEmail && sessionTitle) {
-    const tableNumber = parseInt(sessionTitle.replace(/[^0-9]/g, ""));
-    console.log(`Saving to MongoDB: ${hostName}, ${userEmail}, table ${tableNumber}`);
-    StudentSession.create({ name: hostName.trim(), email: userEmail, tableNumber, sessionId })
-      .then(() => console.log('Student session saved to MongoDB'))
-      .catch(err => console.error("MongoDB save error:", err.message));
-  }
+  createSessionRecord({
+    sessionId,
+    sessionTitle: sessionTitle || '',
+    hostName: hostName.trim(),
+    hostEmail: userEmail || '',
+  }).catch(err => console.error('[MongoDB] session record error:', err));
 
   console.log(`Session created: ${sessionId} by ${hostName}`);
 
@@ -275,6 +255,16 @@ app.post("/api/sessions/:sessionId/join", (req, res) => {
   }
 
   session.addParticipant(userName.trim(), avatar, color);
+
+  const { email, tableNumber } = req.body;
+  if (email && tableNumber) {
+      addStudentToSession({
+        sessionId,
+        name: userName.trim(),
+        email,
+        tableNumber: parseInt(tableNumber),
+      }).catch(err => console.error('[MongoDB] addStudent error:', err));
+    }
 
   console.log(`${userName} joined session: ${sessionId}`);
 
@@ -540,6 +530,7 @@ setInterval(
 ); 
 
 const PORT = process.env.PORT || 5001;
+connectMongo();
 server.listen(PORT, () => {
   console.log(`Session server running on port ${PORT}`);
   console.log(

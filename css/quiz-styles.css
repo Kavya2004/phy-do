@@ -12,7 +12,7 @@
 }
 
 .quiz-container {
-    background: #74A662;
+    background: #881c1c;
     margin: 2% auto;
     padding: 0;
     border-radius: 20px;
@@ -53,7 +53,7 @@
 
 .quiz-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #4CAF50, #45a049);
+    background: linear-gradient(90deg, #881c1c, #6e1616);
     border-radius: 10px;
     transition: width 0.3s ease;
 }
@@ -73,7 +73,7 @@
 }
 
 .question-number {
-    color: #74A662;
+    color: #881c1c;
     font-size: 0.9em;
     font-weight: 600;
     margin-bottom: 10px;
@@ -106,20 +106,20 @@
 
 .option:hover {
     background: #e3f2fd;
-    border-color: #74A662;
+    border-color: #881c1c;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(116, 166, 98, 0.15);
+    box-shadow: 0 4px 12px rgba(136, 28, 28, 0.15);
 }
 
 .option.selected {
-    background: #74A662;
-    border-color: #74A662;
+    background: #881c1c;
+    border-color: #881c1c;
     color: white;
 }
 
 .option.correct {
-    background: #4CAF50;
-    border-color: #4CAF50;
+    background: #881c1c;
+    border-color: #881c1c;
     color: white;
 }
 
@@ -147,12 +147,12 @@
 }
 
 .quiz-btn-primary {
-    background: #74A662;
+    background: #881c1c;
     color: white;
 }
 
 .quiz-btn-primary:hover {
-    background: #5d8a4f;
+    background: #6e1616;
     transform: translateY(-1px);
 }
 
@@ -219,7 +219,7 @@
 .score-display {
     font-size: 3em;
     font-weight: bold;
-    color: #74A662;
+    color: #881c1c;
     margin-bottom: 20px;
 }
 

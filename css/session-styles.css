@@ -38,21 +38,21 @@
 .drag-handle {
     width: 100%;
     height: 24px;
-    background: linear-gradient(135deg, #014148, #337810);
+    background: linear-gradient(135deg, #881c1c, #6e1616);
     border-radius: 10px 10px 0 0;
     cursor: grab;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
-    border: 1px solid #4a5c2f;
+    border: 1px solid #6e1616;
     border-bottom: none;
-    box-shadow: 0 2px 4px rgba(1, 65, 72, 0.2);
+    box-shadow: 0 2px 4px rgba(136, 28, 28, 0.2);
 }
 
 .drag-handle:hover {
-    background: linear-gradient(135deg, #337810, #6b7d4f);
-    box-shadow: 0 3px 6px rgba(51, 120, 16, 0.3);
+    background: linear-gradient(135deg, #6e1616, #a83232);
+    box-shadow: 0 3px 6px rgba(136, 28, 28, 0.3);
 }
 
 .drag-handle:active {
@@ -98,7 +98,7 @@
 .session-actions .session-btn {
     font-size: 10px !important;
     padding: 6px 8px !important;
-    border: 1px solid #337810 !important;
+    border: 1px solid #881c1c !important;
 }
 
 .session-dropdown {
@@ -109,9 +109,9 @@
 .session-dropdown-btn {
     width: 100%;
     padding: 10px 14px;
-    background: linear-gradient(135deg, #014148, #337810);
+    background: linear-gradient(135deg, #881c1c, #6e1616);
     color: #f2fcf7;
-    border: 1px solid #4a5c2f;
+    border: 1px solid #6e1616;
     border-radius: 10px;
     cursor: pointer;
     font-size: 13px;
@@ -120,15 +120,15 @@
     justify-content: space-between;
     align-items: center;
     transition: all 0.3s ease;
-    box-shadow: 0 3px 6px rgba(1, 65, 72, 0.2);
+    box-shadow: 0 3px 6px rgba(136, 28, 28, 0.2);
     text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .session-dropdown-btn:hover {
-    background: linear-gradient(135deg, #337810, #6b7d4f);
-    border-color: #3a4c1f;
+    background: linear-gradient(135deg, #6e1616, #a83232);
+    border-color: #4d0f0f;
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(51, 120, 16, 0.3);
+    box-shadow: 0 6px 12px rgba(136, 28, 28, 0.3);
     color: #ffffff;
 }
 
@@ -212,35 +212,35 @@
 }
 
 .session-btn {
-    background: linear-gradient(135deg, #337810, #6b7d4f) !important;
+    background: linear-gradient(135deg, #881c1c, #a83232) !important;
     color: #ffffff !important;
-    border: 1px solid #4a5c2f !important;
+    border: 1px solid #6e1616 !important;
     text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
 }
 
 .session-btn:hover {
-    background: linear-gradient(135deg, #2a6209, #5a6b3f) !important;
-    border-color: #3a4c1f !important;
+    background: linear-gradient(135deg, #6e1616, #881c1c) !important;
+    border-color: #4d0f0f !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(51, 120, 16, 0.3) !important;
+    box-shadow: 0 4px 12px rgba(136, 28, 28, 0.3) !important;
 }
 
 .session-btn.leave-session,
 .session-btn.auto-speech,
 .session-btn.auto-speech.active {
-    background: linear-gradient(135deg, #337810, #6b7d4f);
+    background: linear-gradient(135deg, #881c1c, #a83232);
     color: #ffffff;
-    border: 1px solid #4a5c2f;
+    border: 1px solid #6e1616;
     text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .session-btn.leave-session:hover,
 .session-btn.auto-speech:hover,
 .session-btn.auto-speech.active:hover {
-    background: linear-gradient(135deg, #2a6209, #5a6b3f);
-    border-color: #3a4c1f;
+    background: linear-gradient(135deg, #6e1616, #881c1c);
+    border-color: #4d0f0f;
     color: #ffffff;
-    box-shadow: 0 4px 12px rgba(51, 120, 16, 0.3);
+    box-shadow: 0 4px 12px rgba(136, 28, 28, 0.3);
 }
 
 .session-btn.cancel {
@@ -460,7 +460,7 @@
 
 .bot-message .message-author {
     font-weight: 600;
-    color: #28a745;
+    color: #881c1c;
 }
 
 .bot-message .message-time {
@@ -1103,11 +1103,11 @@
 }
 
 #publicSessionsBtn {
-    background: linear-gradient(135deg, #28a745, #20c997);
+    background: linear-gradient(135deg, #881c1c, #a83232);
 }
 
 #publicSessionsBtn:hover {
-    background: linear-gradient(135deg, #218838, #1da88a);
+    background: linear-gradient(135deg, #6e1616, #881c1c);
 }
 
 .session-title-display {
@@ -1216,7 +1216,7 @@
   }
   
   .participant-count {
-    color: #28a745;
+    color: #881c1c;
     font-weight: 500;
   }
   
