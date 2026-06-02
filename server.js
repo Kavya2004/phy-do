@@ -295,3 +295,7 @@ connectMongo();
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
+
+function generateSessionId() {
+    return 'ADV-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+}
