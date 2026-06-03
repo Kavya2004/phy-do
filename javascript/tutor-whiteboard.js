@@ -1,3 +1,4 @@
+/* DISABLED - teacher/student whiteboards not in use
 let teacherCanvas, teacherCtx, studentCanvas, studentCtx;
 
 
@@ -1771,3 +1772,4 @@ window.insertSquareRoot = insertSquareRoot;
 window.insertPi = insertPi;
 window.toggleDrawing = toggleDrawing;
 window.testStudentDrawButton = testStudentDrawButton;
+*/ // END DISABLED
