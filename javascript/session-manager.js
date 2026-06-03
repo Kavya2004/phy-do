@@ -1600,4 +1600,4 @@ class SessionManager {
     }
   }
 }
-window.sessionManager = new SessionManager();
+window.sessionManager = new SessionManager();hm 

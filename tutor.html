@@ -1,53 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Physics Tutor</title>
-		<link rel="icon" type="image/png" href="images/dice.png">
-		<link rel="stylesheet" href="css/style_sheet.css" />
-		<link rel="stylesheet" href="css/session-styles.css" />
-		<link rel="stylesheet" href="css/quiz-styles.css" />
 
-	</head>
-	<body>
-		<div class="tutor-container">
-			<div class="tutor-header">
-				<h1>Physics Tutor</h1>
-				<p>Your friendly guide to physics!</p>
-				<div class="mobile-nav" id="mobileNav">
-					<button class="mobile-nav-btn active" id="chatNavBtn" onclick="showMobileSection('chat')">💬 Chat</button>
-					<button class="mobile-nav-btn" id="whiteboardNavBtn" onclick="showMobileSection('whiteboard')">📝 Whiteboard</button>
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Physics Tutor</title>
+	<link rel="icon" type="image/png" href="images/dice.png">
+	<link rel="stylesheet" href="css/style_sheet.css" />
+	<link rel="stylesheet" href="css/session-styles.css" />
+	<link rel="stylesheet" href="css/quiz-styles.css" />
+
+</head>
+
+<body>
+	<div class="tutor-container">
+		<div class="tutor-header">
+			<h1>Physics Tutor</h1>
+			<p>Your friendly guide to physics!</p>
+			<div class="mobile-nav" id="mobileNav">
+				<button class="mobile-nav-btn active" id="chatNavBtn" onclick="showMobileSection('chat')">💬
+					Chat</button>
+				<button class="mobile-nav-btn" id="whiteboardNavBtn" onclick="showMobileSection('whiteboard')">📝
+					Whiteboard</button>
+			</div>
+		</div>
+		<div class="main-content">
+			<div class="chat-section">
+				<div class="chat-container">
+					<div class="chat-messages" id="chatMessages"></div>
+					<div class="chat-input-container">
+						<input type="file" id="fileInput"
+							accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.heif,.mp4,.mov,.avi,.wav,.mp3,.txt,.html,.css,.js,.py"
+							multiple style="display: none;">
+						<input type="text" id="chatInput" placeholder="Ask me anything about physics!" />
+						<button id="uploadButton" class="upload-btn" title="Upload Files">📎</button>
+						<button id="voiceInputBtn" class="upload-btn" title="Click to speak">🎤</button>
+						<button id="sendButton">Send</button>
+					</div>
+					<div id="filePreview" class="file-preview"></div>
 				</div>
 			</div>
-			<div class="main-content">
-				<div class="chat-section">
-					<div class="chat-container">
-						<div class="chat-messages" id="chatMessages"></div>
-						<div class="chat-input-container">
-							<input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.heif,.mp4,.mov,.avi,.wav,.mp3,.txt,.html,.css,.js,.py" multiple style="display: none;">
-							<input type="text" id="chatInput" placeholder="Ask me anything about physics!" />
-							<button id="uploadButton" class="upload-btn" title="Upload Files">📎</button>
-							<button id="voiceInputBtn" class="upload-btn" title="Click to speak">🎤</button>
-							<button id="sendButton">Send</button>
-						</div>
-						<div id="filePreview" class="file-preview"></div>
-					</div>
-				</div>
-				<div class="whiteboard-section" id="whiteboardSection">
-					<div class="whiteboard-tabs">
-						<!-- Teacher Board tab disabled
+			<div class="whiteboard-section" id="whiteboardSection">
+				<div class="whiteboard-tabs">
+					<!-- Teacher Board tab disabled
 						<button class="tab-button active" id="teacherTab" onclick="switchWhiteboard('teacher')">
 							🎓 Teacher Board
 						</button>
 						-->
-						<!-- Student Board tab disabled
+					<!-- Student Board tab disabled
 						<button class="tab-button" id="studentTab" onclick="switchWhiteboard('student')">✏️ Student Board</button>
 						-->
-						<button class="tab-button active" id="notesTab" onclick="switchWhiteboard('notes')">📝 Notes</button>
-					</div>
-					<div class="whiteboard-container">
-						<!-- Teacher Whiteboard disabled
+					<button class="tab-button active" id="notesTab" onclick="switchWhiteboard('notes')">📝
+						Notes</button>
+				</div>
+				<div class="whiteboard-container">
+					<!-- Teacher Whiteboard disabled
 						<div class="whiteboard-panel active" id="teacherPanel">
 							<div class="whiteboard-header">
 								<h3>Teacher Whiteboard</h3>
@@ -73,7 +80,7 @@
 						</div>
 						 -->
 
-						<!-- Student Whiteboard disabled 
+					<!-- Student Whiteboard disabled 
 						<div class="whiteboard-panel" id="studentPanel">
 							<div class="whiteboard-header">
 								<h3>Student Whiteboard</h3>
@@ -98,95 +105,94 @@
 							<canvas id="studentWhiteboard" class="whiteboard-canvas"></canvas>
 						</div> -->
 
-						<div class="whiteboard-panel" id="notesPanel">
-							<div class="whiteboard-header">
-								<h3>Student Notes</h3>
-								<div class="whiteboard-controls">
-									<div class="notebook-mode-toggle">
-										<button class="mode-btn active" id="writeModeBtn">Write</button>
-										<button class="mode-btn" id="drawModeBtn">Draw</button>
-									</div>
-									<button id="clearNotesButton">Clear</button>
-									<button id="saveNotesButton">Save</button>
-									<button id="expandNotesButton">Expand</button>
+					<div class="whiteboard-panel active" id="notesPanel">
+						<div class="whiteboard-header">
+							<h3>Student Notes</h3>
+							<div class="whiteboard-controls">
+								<div class="notebook-mode-toggle">
+									<button class="mode-btn active" id="writeModeBtn">Write</button>
+									<button class="mode-btn" id="drawModeBtn">Draw</button>
 								</div>
+								<button id="clearNotesButton">Clear</button>
+								<button id="saveNotesButton">Save</button>
+								<button id="expandNotesButton">Expand</button>
 							</div>
-							<div class="notebook-container">
-								<div class="notebook-paper">
-									<textarea
-										id="studentNotes"
-										placeholder="Take your notes here... You can switch to draw mode to sketch diagrams and formulas!"
-									></textarea>
-									<canvas id="notesCanvas" class="notes-canvas"></canvas>
-								</div>
-							</div>
-							<div class="notes-toolbar">
-								<div class="pen-size-group">
-									<label for="penSize">Pen Size:</label>
-									<input type="range" id="penSize" min="1" max="20" value="2">
-									<span class="pen-size-display" id="penSizeDisplay">2</span>
-								</div>
-							
-								<div class="pen-color-group">
-									<label for="penColor">Color:</label>
-									<input type="color" id="penColor" value="#333333">
-								</div>
-							
-								<button id="eraserNotesButton" class="eraser-btn">
-									🧽 <span>Eraser</span>
-								</button>
-							</div>
-																			  
 						</div>
-					</div>
-				</div>
-				<!-- Book Reference Modal -->
-				<div id="bookRefOverlay" style="display:none;" onclick="if(event.target===this)closeBookRef()">
-					<div id="bookRefPanel">
-						<div id="bookRefHeader">
-							<span id="bookRefTitle">📖 College Physics 2e</span>
-							<div id="bookRefNav">
-								<button onclick="bookRefChangePage(-1)">&#8249;</button>
-								<span id="bookRefPageLabel"></span>
-								<button onclick="bookRefChangePage(1)">&#8250;</button>
+						<div class="notebook-container">
+							<div class="notebook-paper">
+								<textarea id="studentNotes"
+									placeholder="Take your notes here... You can switch to draw mode to sketch diagrams and formulas!"></textarea>
+								<canvas id="notesCanvas" class="notes-canvas"></canvas>
 							</div>
-							<button id="bookRefClose" onclick="closeBookRef()">✕</button>
 						</div>
-						<iframe id="bookRefIframe" style="width:100%;flex:1;border:none;"></iframe>
+						<div class="notes-toolbar">
+							<div class="pen-size-group">
+								<label for="penSize">Pen Size:</label>
+								<input type="range" id="penSize" min="1" max="20" value="2">
+								<span class="pen-size-display" id="penSizeDisplay">2</span>
+							</div>
+
+							<div class="pen-color-group">
+								<label for="penColor">Color:</label>
+								<input type="color" id="penColor" value="#333333">
+							</div>
+
+							<button id="eraserNotesButton" class="eraser-btn">
+								🧽 <span>Eraser</span>
+							</button>
+						</div>
+
 					</div>
 				</div>
 			</div>
-			<div class="loading-indicator" id="loadingIndicator" style="display: none">
-				<div class="loading-content">
-					<div class="spinner"></div>
-					<div class="loading-text">
-						<span id="loadingMessage">Tutor is thinking...</span>
-						<span id="loadingTime">Estimated time: 3-5 seconds</span>
+			<!-- Book Reference Modal -->
+			<div id="bookRefOverlay" style="display:none;" onclick="if(event.target===this)closeBookRef()">
+				<div id="bookRefPanel">
+					<div id="bookRefHeader">
+						<span id="bookRefTitle">📖 College Physics 2e</span>
+						<div id="bookRefNav">
+							<button onclick="bookRefChangePage(-1)">&#8249;</button>
+							<span id="bookRefPageLabel"></span>
+							<button onclick="bookRefChangePage(1)">&#8250;</button>
+						</div>
+						<button id="bookRefClose" onclick="closeBookRef()">✕</button>
 					</div>
-				</div>
-				<div class="progress-bar">
-					<div class="progress-fill" id="progressFill"></div>
+					<iframe id="bookRefIframe" style="width:100%;flex:1;border:none;"></iframe>
 				</div>
 			</div>
 		</div>
-
-		<div class="privacy-notice">
-			<p>We do not collect, store, or sell any personal data. This website is for educational use only.</p>
+		<div class="loading-indicator" id="loadingIndicator" style="display: none">
+			<div class="loading-content">
+				<div class="spinner"></div>
+				<div class="loading-text">
+					<span id="loadingMessage">Tutor is thinking...</span>
+					<span id="loadingTime">Estimated time: 3-5 seconds</span>
+				</div>
+			</div>
+			<div class="progress-bar">
+				<div class="progress-fill" id="progressFill"></div>
+			</div>
 		</div>
+	</div>
 
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-		<script src="javascript/latex-converter.js"></script>
-		<script src="javascript/link-validator.js"></script>
-		<script src="javascript/diagram-renderer.js"></script>
+	<div class="privacy-notice">
+		<p>We do not collect, store, or sell any personal data. This website is for educational use only.</p>
+	</div>
 
-		<script src="javascript/tutor-chat.js"></script>
-		<!-- tutor-whiteboard.js disabled
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+	<script src="javascript/latex-converter.js"></script>
+	<script src="javascript/link-validator.js"></script>
+	<script src="javascript/diagram-renderer.js"></script>
+
+	<script src="javascript/tutor-chat.js"></script>
+	<!-- tutor-whiteboard.js disabled
 		<script src="javascript/tutor-whiteboard.js"></script>
 		-->
-		<script src="javascript/student-notes.js"></script>
-		<script src="javascript/session-manager.js?v=3"></script>
-		<script src="javascript/quiz-system.js"></script>
-		<script src="javascript/quiz-integration.js"></script>
-		<script src="javascript/mobile-navigation.js"></script>
-	</body>
+	<script src="javascript/student-notes.js"></script>
+	<script src="javascript/session-manager.js?v=3"></script>
+	<script src="javascript/quiz-system.js"></script>
+	<script src="javascript/quiz-integration.js"></script>
+	<script src="javascript/mobile-navigation.js"></script>
+</body>
+
 </html>
