@@ -56,6 +56,11 @@ function convertLatexToUnicode(text) {
     // Also handle simple markdown-style tables
     result = convertMarkdownTables(result);
 
+    // Convert LaTeX text formatting
+    result = result.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
+    result = result.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>');
+    result = result.replace(/\\underline\{([^}]+)\}/g, '<u>$1</u>');
+
     // Convert markdown-style formatting
     result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); // **bold**
     result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>'); // *italic*
