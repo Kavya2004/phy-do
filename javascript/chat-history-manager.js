@@ -214,14 +214,18 @@
   // ─── Message persistence (debounced batching) ─────────────────────────────
 
   async function flushQueue() {
-    if (_writing || _messageQueue.length === 0 || !_currentId || !_ready) return;
+    if (_writing || _messageQueue.length === 0 || !_currentId || !_ready) {
+      console.log('[chat-history] flushQueue blocked:', { _writing, queueLen: _messageQueue.length, _currentId, _ready });
+      return;
+    }
     _writing = true;
     const batch = _messageQueue.splice(0, _messageQueue.length);
+    console.log('[chat-history] flushing', batch.length, 'messages to convo', _currentId);
     try {
       await apiPatch(`/api/chat-history/${_currentId}/messages`, { messages: batch });
+      console.log('[chat-history] flush OK');
     } catch (e) {
       console.warn('[chat-history] flush failed:', e.message);
-      // put them back at the front
       _messageQueue.unshift(...batch);
     }
     _writing = false;
@@ -315,12 +319,13 @@
 
   async function init(email) {
     _email = email;
+    console.log('[chat-history] init started for', email);
     buildSidebar();
     await loadConvoList();
     await createNewConvo();
     _ready = true;
+    console.log('[chat-history] init done, _currentId:', _currentId, 'queue size:', _messageQueue.length);
     markActiveInList(_currentId);
-    // Flush anything that was queued before we were ready (e.g. the greeting message)
     if (_messageQueue.length > 0) flushQueue();
   }
 
@@ -331,8 +336,9 @@
     getCurrentConvoId: () => _currentId,
     appendMessage(role, content) {
       // Always queue — flushQueue will wait until _ready and _currentId are set
+      console.log('[chat-history] appendMessage queued:', role, content.substring(0, 40), '| ready:', _ready, '| id:', _currentId);
       _messageQueue.push({ role, content, timestamp: new Date() });
-      setTimeout(flushQueue, 800); // debounce
+      setTimeout(flushQueue, 800);
     },
     autoTitle,
     loadConversation,
