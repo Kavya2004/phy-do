@@ -97,6 +97,29 @@ function initializeChat() {
     addMessage("Hi there! I'm your physics tutor! Ask me anything about physics!", 'bot');
 
     document.addEventListener('paste', handlePasteEvent);
+
+    // ── Expose hooks for chat-history-manager ──────────────────────────────
+
+    // Reset context to just the system prompt
+    window._resetChatContext = function () {
+        context = [context[0]];
+    };
+
+    // Add a message to the UI without triggering any DB save (used when replaying history)
+    window._addMessageSilent = function (text, sender) {
+        _addMessageInternal(text, sender, [], null, /*silent=*/true);
+    };
+
+    // Rebuild the AI context from stored message array
+    window._rebuildContext = function (messages) {
+        context = [context[0]]; // keep system prompt
+        messages.forEach(m => {
+            context.push({ role: m.role === 'bot' ? 'assistant' : 'user', content: m.content });
+        });
+        // Trim to max size
+        const max = 18;
+        if (context.length > max) context = [context[0], ...context.slice(-(max - 1))];
+    };
 }
 let uploadedFiles = [];
 
@@ -503,6 +526,10 @@ function handleSendMessage() {
 }
 
 function addMessage(text, sender, files = [], citation = null) {
+	_addMessageInternal(text, sender, files, citation, false);
+}
+
+function _addMessageInternal(text, sender, files = [], citation = null, silent = false) {
 	const chatMessages = document.getElementById('chatMessages');
 	const messageDiv = document.createElement('div');
 	messageDiv.className = `message ${sender}-message slide-in`;
@@ -596,6 +623,11 @@ function addMessage(text, sender, files = [], citation = null) {
 
 	if (window.sessionManager && window.sessionManager.sessionId) {
 		window.sessionManager.broadcastMessage(text, sender, files);
+	}
+
+	// Persist to MongoDB (skip when replaying history)
+	if (!silent && window.chatHistoryManager) {
+		window.chatHistoryManager.appendMessage(sender === 'bot' ? 'bot' : 'user', text);
 	}
 
 }
@@ -873,6 +905,7 @@ function completeLoading() {
 
 // Make function globally available
 window.showLoadingForQuiz = showLoadingForQuiz;
+window.addMessage = addMessage;
 function hasWhiteboardContent(board) {
 	const canvas = board === 'teacher' ? 
 		document.getElementById('teacherWhiteboard') : 
@@ -1196,6 +1229,10 @@ async function processUserMessage(message) {
 			window.sessionManager.broadcastMessage(botResponse, 'bot');
 		} else {
 			addMessage(botResponse, 'bot', [], extractedCitation);
+			// Auto-generate conversation title from the first exchange
+			if (window.chatHistoryManager) {
+				window.chatHistoryManager.autoTitle(message, botResponse);
+			}
 		}
 
 		// Execute whiteboard action or generate diagram

@@ -64,6 +64,23 @@ export function getUserActivityModel() {
   return getConn().models.UserActivity || getConn().model('UserActivity', userActivitySchema);
 }
 
+// ── Chat History Schema ──
+const chatMessageSchema = new mongoose.Schema({
+  role:      { type: String, enum: ['user', 'bot'], required: true },
+  content:   { type: String, required: true },
+  timestamp: { type: Date, default: Date.now },
+}, { _id: false });
+
+const chatConversationSchema = new mongoose.Schema({
+  email:    { type: String, required: true, index: true },
+  title:    { type: String, default: 'New Conversation' },
+  messages: { type: [chatMessageSchema], default: [] },
+}, { timestamps: true });
+
+export function getChatConversationModel() {
+  return getConn().models.ChatConversation || getConn().model('ChatConversation', chatConversationSchema);
+}
+
 // ── Helpers ──
 export async function createSessionRecord({ sessionId, sessionTitle, hostName, hostEmail }) {
   try {

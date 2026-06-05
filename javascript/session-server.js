@@ -10,6 +10,7 @@ import { readFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
 import { connectMongo, createSessionRecord, addStudentToSession } from '../config/mongodb.js';
 import userActivityRouter from '../api/user-activity.js';
+import chatHistoryRouter from '../api/chat-history.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -32,6 +33,9 @@ app.use(express.json());
 
 // User activity (login / logout tracking)
 app.use('/api/user-activity', userActivityRouter);
+
+// Chat history persistence
+app.use('/api/chat-history', chatHistoryRouter);
 
 const sessions = new Map();
 const sessionConnections = new Map(); 
