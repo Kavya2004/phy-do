@@ -9,6 +9,7 @@ import { existsSync } from 'fs';
 import { readFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
 import { connectMongo, createSessionRecord, addStudentToSession } from '../config/mongodb.js';
+import userActivityRouter from '../api/user-activity.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -28,6 +29,9 @@ app.use(cors({
 // Handle preflight for all routes
 app.options('/{*path}', cors());
 app.use(express.json());
+
+// User activity (login / logout tracking)
+app.use('/api/user-activity', userActivityRouter);
 
 const sessions = new Map();
 const sessionConnections = new Map(); 

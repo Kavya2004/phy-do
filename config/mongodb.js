@@ -19,6 +19,15 @@ const sessionSchema = new mongoose.Schema({
   students: { type: [studentSchema], default: [] },
 }, { timestamps: true });
 
+// ── User Activity Schema (login / logout tracking) ──
+const userActivitySchema = new mongoose.Schema({
+  email:      { type: String, required: true },
+  loginTime:  { type: Date, required: true },
+  logoutTime: { type: Date, default: null },
+  // duration in seconds; set when user logs out
+  durationSeconds: { type: Number, default: null },
+}, { timestamps: true });
+
 // ── Connection (use createConnection to keep models isolated) ──
 let conn = null;
 let connectPromise = null;
@@ -49,6 +58,10 @@ function getConn() {
 
 export function getSessionModel() {
   return getConn().models.Session || getConn().model('Session', sessionSchema);
+}
+
+export function getUserActivityModel() {
+  return getConn().models.UserActivity || getConn().model('UserActivity', userActivitySchema);
 }
 
 // ── Helpers ──
@@ -85,6 +98,49 @@ export async function addStudentToSession({ sessionId, name, email, tableNumber 
     return session;
   } catch (err) {
     console.error('[MongoDB] addStudentToSession error:', err.message);
+    return null;
+  }
+}
+
+// ── User Activity Helpers ──
+
+/**
+ * Record a new login. Returns the created document's _id string,
+ * which the client stores and sends back on logout.
+ */
+export async function recordLogin(email) {
+  try {
+    const connected = await connectMongo();
+    if (!connected) return null;
+    const UserActivity = getUserActivityModel();
+    const doc = await UserActivity.create({ email, loginTime: new Date() });
+    console.log('[MongoDB] Login recorded:', email);
+    return doc._id.toString();
+  } catch (err) {
+    console.error('[MongoDB] recordLogin error:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Update an existing activity record with logout time and total duration.
+ */
+export async function recordLogout(activityId) {
+  try {
+    const connected = await connectMongo();
+    if (!connected) return null;
+    const UserActivity = getUserActivityModel();
+    const doc = await UserActivity.findById(activityId);
+    if (!doc) return null;
+    const logoutTime = new Date();
+    const durationSeconds = Math.round((logoutTime - doc.loginTime) / 1000);
+    doc.logoutTime = logoutTime;
+    doc.durationSeconds = durationSeconds;
+    await doc.save();
+    console.log('[MongoDB] Logout recorded:', doc.email, `(${durationSeconds}s)`);
+    return doc;
+  } catch (err) {
+    console.error('[MongoDB] recordLogout error:', err.message);
     return null;
   }
 }

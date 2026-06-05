@@ -13,68 +13,125 @@
 </head>
 
 <body>
-		<!-- Email Gate Overlay -->
-		<div id="emailGate" style="
+	<!-- Email Gate Overlay -->
+	<div id="emailGate" style="
 			position: fixed; inset: 0; z-index: 99999;
 			background: linear-gradient(135deg, #881c1c 0%, #6e1616 100%);
 			display: flex; align-items: center; justify-content: center;
 		">
-			<div style="
+		<div style="
 				background: white; border-radius: 16px; padding: 48px 40px;
 				max-width: 420px; width: 90%; text-align: center;
 				box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 			">
-				<div style="font-size: 48px; margin-bottom: 16px;">🎓</div>
-				<h2 style="color: #881c1c; margin: 0 0 8px; font-size: 1.6em;">Physics Tutor</h2>
-				<p style="color: #666; margin: 0 0 28px; font-size: 0.95em;">Enter your UMass email to continue</p>
-				<input
-					id="emailGateInput"
-					type="email"
-					placeholder="yourname@umass.edu"
-					style="
+			<div style="font-size: 48px; margin-bottom: 16px;">🎓</div>
+			<h2 style="color: #881c1c; margin: 0 0 8px; font-size: 1.6em;">Physics Tutor</h2>
+			<p style="color: #666; margin: 0 0 28px; font-size: 0.95em;">Enter your UMass email to continue</p>
+			<input id="emailGateInput" type="email" placeholder="yourname@umass.edu" style="
 						width: 100%; padding: 14px 16px; font-size: 15px;
 						border: 2px solid #e0e0e0; border-radius: 10px;
 						outline: none; box-sizing: border-box; margin-bottom: 10px;
 						transition: border-color 0.2s;
-					"
-				/>
-				<div id="emailGateError" style="color: #dc3545; font-size: 13px; margin-bottom: 12px; min-height: 18px;"></div>
-				<button
-					id="emailGateBtn"
-					style="
+					" />
+			<div id="emailGateError" style="color: #dc3545; font-size: 13px; margin-bottom: 12px; min-height: 18px;">
+			</div>
+			<button id="emailGateBtn" style="
 						width: 100%; padding: 14px; font-size: 15px; font-weight: 600;
 						background: linear-gradient(135deg, #881c1c, #6e1616);
 						color: white; border: none; border-radius: 10px;
 						cursor: pointer; transition: opacity 0.2s;
-					"
-				>Continue</button>
-			</div>
+					">Continue</button>
+		</div>
+	</div>
+	<script>
+		(function () {
+			const BACKEND = 'https://physics-ai-tutor.onrender.com';
+			const gate = document.getElementById('emailGate');
+			const input = document.getElementById('emailGateInput');
+			const btn = document.getElementById('emailGateBtn');
+			const err = document.getElementById('emailGateError');
+			input.addEventListener('focus', () => input.style.borderColor = '#881c1c');
+			input.addEventListener('blur', () => input.style.borderColor = '#e0e0e0');
+			async function submit() {
+				const val = input.value.trim().toLowerCase();
+				if (!val.endsWith('@umass.edu')) {
+					err.textContent = 'Please enter a valid @umass.edu email address.';
+					input.style.borderColor = '#dc3545';
+					return;
+				}
+				btn.disabled = true;
+				btn.textContent = 'Signing in...';
+
+				// Record login in MongoDB
+				try {
+					const resp = await fetch(`${BACKEND}/api/user-activity/login`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ email: val }),
+					});
+					const data = await resp.json();
+					window._activityId = data.activityId || null;
+				} catch (_) {
+					// DB error is non-blocking; let the student in anyway
+					window._activityId = null;
+				}
+
+				window.studentEmail = val;
+				gate.style.opacity = '0';
+				gate.style.transition = 'opacity 0.3s';
+				setTimeout(() => {
+					gate.remove();
+					// Show the sign-out button now that we know the email
+					const signOutBar = document.getElementById('signOutBar');
+					if (signOutBar) {
+						document.getElementById('signedInEmail').textContent = val;
+						signOutBar.style.display = 'flex';
+					}
+				}, 300);
+			}
+			btn.addEventListener('click', submit);
+			input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+		})();
+	</script>
+	<div class="tutor-container">
+		<!-- Sign-out bar: hidden until login succeeds -->
+		<div id="signOutBar" style="
+			display: none; align-items: center; justify-content: flex-end; gap: 12px;
+			padding: 8px 20px;
+			background: #6e1616;
+			color: #fff; font-size: 13px;
+		">
+			<span>👤 <span id="signedInEmail" style="font-weight:600;"></span></span>
+			<button id="signOutBtn" style="
+				padding: 6px 16px; font-size: 13px; font-weight: 600;
+				background: rgba(255,255,255,0.15); color: #fff;
+				border: 1px solid rgba(255,255,255,0.4); border-radius: 6px;
+				cursor: pointer; transition: background 0.2s;
+			" onmouseover="this.style.background='rgba(255,255,255,0.28)'"
+				onmouseout="this.style.background='rgba(255,255,255,0.15)'">Sign Out</button>
 		</div>
 		<script>
 			(function () {
-				const gate = document.getElementById('emailGate');
-				const input = document.getElementById('emailGateInput');
-				const btn = document.getElementById('emailGateBtn');
-				const err = document.getElementById('emailGateError');
-				input.addEventListener('focus', () => input.style.borderColor = '#881c1c');
-				input.addEventListener('blur', () => input.style.borderColor = '#e0e0e0');
-				function submit() {
-					const val = input.value.trim().toLowerCase();
-					if (!val.endsWith('@umass.edu')) {
-						err.textContent = 'Please enter a valid @umass.edu email address.';
-						input.style.borderColor = '#dc3545';
-						return;
-					}
-					window.studentEmail = val;
-					gate.style.opacity = '0';
-					gate.style.transition = 'opacity 0.3s';
-					setTimeout(() => gate.remove(), 300);
-				}
-				btn.addEventListener('click', submit);
-				input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+				const BACKEND = 'https://physics-ai-tutor.onrender.com';
+				document.getElementById('signOutBtn').addEventListener('click', async function () {
+					this.disabled = true;
+					this.textContent = 'Signing out…';
+					try {
+						if (window._activityId) {
+							await fetch(`${BACKEND}/api/user-activity/logout`, {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ activityId: window._activityId }),
+							});
+						}
+					} catch (_) { /* non-blocking */ }
+					// Clear state and reload — the email gate will reappear
+					window._activityId = null;
+					window.studentEmail = null;
+					window.location.reload();
+				});
 			})();
 		</script>
-	<div class="tutor-container">
 		<div class="tutor-header">
 			<h1>Physics Tutor</h1>
 			<p>Your friendly guide to physics!</p>
