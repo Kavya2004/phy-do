@@ -21,6 +21,7 @@
   let _messageQueue = [];      // buffer while DB write is in-flight
   let _writing = false;
   let _sidebarVisible = false;
+  let _ready = false;          // true once init() has completed and _currentId is set
 
   // ─── DOM helpers ──────────────────────────────────────────────────────────
 
@@ -213,14 +214,14 @@
   // ─── Message persistence (debounced batching) ─────────────────────────────
 
   async function flushQueue() {
-    if (_writing || _messageQueue.length === 0 || !_currentId) return;
+    if (_writing || _messageQueue.length === 0 || !_currentId || !_ready) return;
     _writing = true;
     const batch = _messageQueue.splice(0, _messageQueue.length);
     try {
       await apiPatch(`/api/chat-history/${_currentId}/messages`, { messages: batch });
     } catch (e) {
       console.warn('[chat-history] flush failed:', e.message);
-      // put them back
+      // put them back at the front
       _messageQueue.unshift(...batch);
     }
     _writing = false;
@@ -247,9 +248,9 @@
       const data = await r.json();
       const title = (data.response || '').trim().replace(/^["']|["']$/g, '').substring(0, 60) || 'Physics Discussion';
       await apiPatch(`/api/chat-history/${_currentId}/title`, { title });
-      // Update sidebar
-      const el = document.querySelector(`.ch-convo-item[data-id="${_currentId}"] .ch-convo-item__title`);
-      if (el) el.textContent = title;
+      // Update sidebar — reload full list so date/order is correct
+      await loadConvoList();
+      markActiveInList(_currentId);
     } catch (e) {
       console.warn('[chat-history] autoTitle failed:', e.message);
     }
@@ -302,9 +303,12 @@
     }
 
     // Create DB record
+    _ready = false;
     await createNewConvo();
     await loadConvoList();
+    _ready = true;
     markActiveInList(_currentId);
+    if (_messageQueue.length > 0) flushQueue();
   }
 
   // ─── Init ─────────────────────────────────────────────────────────────────
@@ -314,7 +318,10 @@
     buildSidebar();
     await loadConvoList();
     await createNewConvo();
+    _ready = true;
     markActiveInList(_currentId);
+    // Flush anything that was queued before we were ready (e.g. the greeting message)
+    if (_messageQueue.length > 0) flushQueue();
   }
 
   // ─── Public API ───────────────────────────────────────────────────────────
@@ -323,7 +330,7 @@
     init,
     getCurrentConvoId: () => _currentId,
     appendMessage(role, content) {
-      if (!_currentId) return;
+      // Always queue — flushQueue will wait until _ready and _currentId are set
       _messageQueue.push({ role, content, timestamp: new Date() });
       setTimeout(flushQueue, 800); // debounce
     },
