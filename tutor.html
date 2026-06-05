@@ -92,6 +92,19 @@
 					if (window.chatHistoryManager) {
 						window.chatHistoryManager.init(val);
 					}
+					// Ensure chat controls are present after login
+					if (window.initializeChat) {
+						window.initializeChat();
+					} else if (window.createChatControls) {
+						window.createChatControls();
+					}
+					setTimeout(() => {
+						if (window.initializeChat) {
+							window.initializeChat();
+						} else if (window.createChatControls) {
+							window.createChatControls();
+						}
+					}, 200);
 				}, 300);
 			}
 			btn.addEventListener('click', submit);

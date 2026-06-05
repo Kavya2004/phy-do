@@ -50,10 +50,19 @@ CITATION RULE: Do NOT write any citation lines or source references in your resp
 ];
 
 const searchCache = new Map();
+window.chatInitialized = false;
 
-document.addEventListener('DOMContentLoaded', function() {
-    initializeChat();
-});
+function maybeInitializeChat() {
+    if (!window.chatInitialized) {
+        initializeChat();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', maybeInitializeChat);
+
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+    maybeInitializeChat();
+}
 
 function handlePasteEvent(event) {
     const activeElement = document.activeElement;
@@ -77,7 +86,10 @@ function handlePasteEvent(event) {
 }
 
 function initializeChat() {
+    if (window.chatInitialized) return;
+    window.chatInitialized = true;
     window.processUserMessage = processUserMessage;
+    window.initializeChat = initializeChat;
     const sendButton = document.getElementById('sendButton');
     const chatInput = document.getElementById('chatInput');
 
@@ -423,7 +435,15 @@ async function getOcrFromImage(base64Image) {
 
 function createChatControls() {
 	const chatContainer = document.querySelector('.chat-container');
-	if (!chatContainer || document.getElementById('chatControls')) return;
+	const existingControls = document.getElementById('chatControls');
+	if (!chatContainer) return;
+	if (existingControls) {
+		if (!chatContainer.contains(existingControls)) {
+			existingControls.remove();
+		} else {
+			return;
+		}
+	}
 
 	const controlsDiv = document.createElement('div');
 	controlsDiv.id = 'chatControls';
@@ -468,82 +488,6 @@ function createChatControls() {
 	controlsDiv.appendChild(summaryBtn);
 	chatContainer.insertBefore(controlsDiv, chatContainer.firstChild);
 }
-
-// --- Math / rendering helpers -------------------------------------
-function escapeHtml(str) {
-	if (!str) return '';
-	return String(str)
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;');
-}
-
-function formatChatText(raw) {
-	// Escape HTML first
-	let s = escapeHtml(raw || '');
-
-	// Convert `http...` or ``http...`` style backtick-wrapped links to anchors
-	s = s.replace(/`{1,2}(https?:\\/\\/[^`]+)`{1,2}/g, (m, url) => {
-		return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-	});
-
-	// Convert angle-bracketed URLs (escaped as &lt;url&gt;) back to anchors
-	s = s.replace(/&lt;(https?:\\/\\/[^&]+)&gt;/g, (m, url) => {
-		return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-	});
-
-	// Preserve line breaks
-	s = s.replace(/\n/g, '<br>');
-
-	return s;
-}
-
-function ensureMathJaxLoaded() {
-	return new Promise((resolve) => {
-		if (window.MathJax && window.MathJax.typesetPromise) return resolve(window.MathJax);
-
-		// Lightweight MathJax config suitable for the chat
-		window.MathJax = {
-			tex: {
-				inlineMath: [['$', '$'], ['\\(', '\\)']],
-				displayMath: [['$$', '$$'], ['\\[', '\\]']],
-				macros: {
-					vec: ['\\vec{#1}', 1],
-					unit: ['\\mathrm{#1}', 1],
-					d: '\\mathrm{d}',
-					pd: '\\partial'
-				}
-			},
-			startup: { typeset: false }
-		};
-
-		const script = document.createElement('script');
-		script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
-		script.async = true;
-		script.onload = () => {
-			// Wait a tick for MathJax to initialize
-			setTimeout(() => resolve(window.MathJax), 50);
-		};
-		script.onerror = () => resolve(window.MathJax);
-		document.head.appendChild(script);
-	});
-}
-
-async function renderMathInElement(el) {
-	if (!el) return;
-	await ensureMathJaxLoaded();
-	try {
-		if (window.MathJax && window.MathJax.typesetPromise) {
-			await window.MathJax.typesetPromise([el]);
-		}
-	} catch (e) {
-		// Non-fatal: continue without blocking chat
-		console.warn('MathJax typeset failed', e);
-	}
-}
-
 
 function initializeVoiceInput() {
 	const micBtn = document.getElementById('voiceInputBtn');
@@ -614,8 +558,11 @@ function _addMessageInternal(text, sender, files = [], citation = null, silent =
 	avatar.className = 'message-avatar';
 	avatar.innerHTML = sender === 'bot' ? '🤖' : '👤';
 
-	// Message text (keep raw LaTeX intact for MathJax typesetting)
+	// Convert LaTeX to Unicode for bot messages
 	let displayText = text;
+	if (sender === 'bot' && window.convertLatexToUnicode) {
+		displayText = window.convertLatexToUnicode(text);
+	}
 
 	const content = document.createElement('div');
 	content.className = 'message-content';
@@ -656,8 +603,12 @@ function _addMessageInternal(text, sender, files = [], citation = null, silent =
 		}).join('');
 	}
 
-	// Use formatter which escapes HTML, preserves breaks, and converts link styles
-	content.innerHTML = formatChatText(displayText);
+	content.innerHTML = displayText
+	.replace(/\n/g, '<br>')
+	.replace(/<https?:\/\/[^>]+>/g, (match) => {
+		const url = match.slice(1, -1);
+		return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+	});
 
 	if (citationHTML) {
 		const pill = document.createElement('div');
@@ -689,9 +640,6 @@ function _addMessageInternal(text, sender, files = [], citation = null, silent =
 	messageDiv.appendChild(content);
 	chatMessages.appendChild(messageDiv);
 	chatMessages.scrollTop = chatMessages.scrollHeight;
-
-	// Typeset any LaTeX in the newly inserted message (lazy-loads MathJax if needed)
-	renderMathInElement(content).catch(() => {});
 
 	if (window.sessionManager && window.sessionManager.sessionId) {
 		window.sessionManager.broadcastMessage(text, sender, files);
