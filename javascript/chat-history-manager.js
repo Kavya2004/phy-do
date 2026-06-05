@@ -231,10 +231,11 @@
 
   async function autoTitle(userMsg, botMsg) {
     if (_titleSet || !_currentId) return;
-    _titleSet = true; // prevent duplicate calls
+    _titleSet = true;
     try {
       const prompt = `Given this physics tutoring exchange, generate a short 4-7 word descriptive title (no quotes, no punctuation at end):\nStudent: ${userMsg}\nTutor: ${botMsg.substring(0, 300)}`;
-      const r = await fetch(`${BACKEND}/api/gemini`, {
+      // Gemini lives on Vercel (/api/gemini), not on the Render backend
+      const r = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -247,7 +248,7 @@
       const data = await r.json();
       const title = (data.response || '').trim().replace(/^["']|["']$/g, '').substring(0, 60) || 'Physics Discussion';
       await apiPatch(`/api/chat-history/${_currentId}/title`, { title });
-      // Update sidebar — reload full list so date/order is correct
+      // Reload sidebar so the new title shows with correct sort order
       await loadConvoList();
       markActiveInList(_currentId);
     } catch (e) {
