@@ -233,20 +233,16 @@
 					idleTimer = setTimeout(doAutoLogout, IDLE_TIMEOUT_MS);
 				}
 
-				// Start tracking once the user successfully signs in.
-				// We poll for the sign-in flag so no changes to the login flow are needed.
+				// Expose so tutor-chat.js can reset the timer on every message
+				window.resetIdleChatTimer = resetIdleTimer;
+
+				// Start the timer once the user signs in
 				const signInWatcher = setInterval(() => {
 					if (window._activityId || window.studentEmail) {
 						clearInterval(signInWatcher);
 						resetIdleTimer();
 					}
 				}, 500);
-
-				// Activity events that reset the timer
-				const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'wheel'];
-				ACTIVITY_EVENTS.forEach(evt =>
-					document.addEventListener(evt, resetIdleTimer, { passive: true })
-				);
 			})();
 		</script>
 		<div class="tutor-header">

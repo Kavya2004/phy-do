@@ -550,6 +550,9 @@ function addMessage(text, sender, files = [], citation = null) {
 }
 
 function _addMessageInternal(text, sender, files = [], citation = null, silent = false) {
+	// Reset the idle-logout timer on every chat message (user or bot)
+	if (window.resetIdleChatTimer) window.resetIdleChatTimer();
+
 	const chatMessages = document.getElementById('chatMessages');
 	const messageDiv = document.createElement('div');
 	messageDiv.className = `message ${sender}-message slide-in`;
