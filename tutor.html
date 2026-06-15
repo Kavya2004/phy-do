@@ -150,6 +150,105 @@
 				});
 			})();
 		</script>
+
+		<!-- Auto-logout after 15 minutes of inactivity -->
+		<script>
+			(function () {
+				const BACKEND = 'https://physics-ai-tutor.onrender.com';
+				const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+				const WARNING_BEFORE_MS = 60 * 1000;       // warn 1 minute before
+
+				let idleTimer = null;
+				let warningTimer = null;
+				let warningBanner = null;
+				let countdownInterval = null;
+
+				function createWarningBanner() {
+					if (warningBanner) return;
+					warningBanner = document.createElement('div');
+					warningBanner.id = 'idleWarningBanner';
+					warningBanner.style.cssText = `
+						position: fixed; bottom: 0; left: 0; right: 0; z-index: 999999;
+						background: #881c1c; color: #fff;
+						padding: 14px 24px;
+						display: flex; align-items: center; justify-content: space-between;
+						font-size: 14px; font-weight: 500;
+						box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
+					`;
+					warningBanner.innerHTML = `
+						<span>⏱️ You've been inactive. Signing you out in <strong id="idleCountdown">60</strong>s to protect your session.</span>
+						<button id="idleStayBtn" style="
+							background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.5);
+							border-radius: 6px; padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
+						">Stay Signed In</button>
+					`;
+					document.body.appendChild(warningBanner);
+					document.getElementById('idleStayBtn').addEventListener('click', resetIdleTimer);
+				}
+
+				function removeWarningBanner() {
+					if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+					if (warningBanner) { warningBanner.remove(); warningBanner = null; }
+				}
+
+				async function doAutoLogout() {
+					removeWarningBanner();
+					try {
+						if (window._activityId) {
+							await fetch(`${BACKEND}/api/user-activity/logout`, {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ activityId: window._activityId }),
+							});
+						}
+					} catch (_) { /* non-blocking */ }
+					window._activityId = null;
+					window.studentEmail = null;
+					window.location.reload();
+				}
+
+				function showWarning() {
+					// Only show warning if the user is actually signed in
+					if (!window._activityId && !window.studentEmail) return;
+					createWarningBanner();
+					let remaining = Math.round(WARNING_BEFORE_MS / 1000);
+					const countdownEl = document.getElementById('idleCountdown');
+					if (countdownEl) countdownEl.textContent = remaining;
+					countdownInterval = setInterval(() => {
+						remaining--;
+						const el = document.getElementById('idleCountdown');
+						if (el) el.textContent = remaining;
+					}, 1000);
+				}
+
+				function resetIdleTimer() {
+					// Don't track if user hasn't logged in yet
+					if (!window._activityId && !window.studentEmail) return;
+
+					removeWarningBanner();
+					clearTimeout(idleTimer);
+					clearTimeout(warningTimer);
+
+					warningTimer = setTimeout(showWarning, IDLE_TIMEOUT_MS - WARNING_BEFORE_MS);
+					idleTimer = setTimeout(doAutoLogout, IDLE_TIMEOUT_MS);
+				}
+
+				// Start tracking once the user successfully signs in.
+				// We poll for the sign-in flag so no changes to the login flow are needed.
+				const signInWatcher = setInterval(() => {
+					if (window._activityId || window.studentEmail) {
+						clearInterval(signInWatcher);
+						resetIdleTimer();
+					}
+				}, 500);
+
+				// Activity events that reset the timer
+				const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'wheel'];
+				ACTIVITY_EVENTS.forEach(evt =>
+					document.addEventListener(evt, resetIdleTimer, { passive: true })
+				);
+			})();
+		</script>
 		<div class="tutor-header">
 			<h1>Physics Tutor</h1>
 			<p>Your friendly guide to physics!</p>
