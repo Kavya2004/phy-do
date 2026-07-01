@@ -365,11 +365,24 @@ async function processFilesForTutor(files) {
 		}
 
 		const base64 = await fileToBase64(file);
-		processedFiles.push({
+		const fileEntry = {
 			name: file.name,
 			type: file.type,
 			data: base64
-		});
+		};
+
+		if (file.type.startsWith('image/')) {
+			try {
+				const ocrText = await getOcrFromImage(base64);
+				if (ocrText && ocrText.trim() && ocrText.trim().toLowerCase() !== 'error reading image text.') {
+					fileEntry.ocrText = ocrText.trim();
+				}
+			} catch (ocrError) {
+				fileEntry.ocrText = null;
+			}
+		}
+
+		processedFiles.push(fileEntry);
 	}
 
 	return processedFiles;
@@ -408,29 +421,37 @@ function fileToBase64(file) {
 }
 
 async function getOcrFromImage(base64Image) {
-	try {
-		const response = await fetch('https://tutor.probabilitycourse.com/api/ocr', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ image: base64Image })
-		});
+	const endpoints = ['/api/ocr', 'https://tutor.probabilitycourse.com/api/ocr'];
 
-		if (!response.ok) throw new Error('OCR request failed');
+	for (const endpoint of endpoints) {
+		try {
+			const response = await fetch(endpoint, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ image: base64Image })
+			});
 
-		const data = await response.json();
+			if (!response.ok) {
+				continue;
+			}
 
-		if (data.text && data.text.trim()) {
-			return data.text;
-		} else if (data.data?.value?.length > 0) {
-			return data.data.value.map((entry) => entry.value).join(' ');
-		} else {
-			return 'No recognizable text found in image.';
+			const data = await response.json();
+
+			if (data.text && data.text.trim()) {
+				return data.text;
+			} else if (Array.isArray(data.data) && data.data.length > 0) {
+				return data.data.map((entry) => entry.value || '').join(' ');
+			} else {
+				return 'No recognizable text found in image.';
+			}
+		} catch (error) {
+			continue;
 		}
-	} catch (error) {
-		return 'Error reading image text.';
 	}
+
+	return 'Error reading image text.';
 }
 
 function createChatControls() {
@@ -1068,13 +1089,20 @@ async function processUserMessage(message) {
 		filePreview.style.display = 'none';
 	}
 
+	// Detect if any of the uploaded files are images
+	const hasImages = processedFiles.some(f => f.type && f.type.startsWith('image/'));
+
 	// Prepare user message (include file info if files were uploaded)
 	let userMessage = message.trim();
 	if (processedFiles.length > 0) {
-		const fileNames = processedFiles.map((f) => f.name).join(', ');
-		userMessage = userMessage || `I've uploaded these files: ${fileNames}`;
-
-		// Files will be sent directly to Gemini API
+		if (hasImages && !userMessage) {
+			// No text provided — give Gemini something to work with in adversarial mode
+			userMessage = 'I uploaded an image. Please look at it carefully and engage with it as my physics tutor.';
+		} else if (!userMessage) {
+			const fileNames = processedFiles.map((f) => f.name).join(', ');
+			userMessage = `I've uploaded these files: ${fileNames}`;
+		}
+		// Files (with base64 data) are sent directly to Gemini API
 	}
 
 	// Handle message display/broadcasting (only once!)
@@ -1142,13 +1170,14 @@ async function processUserMessage(message) {
 			});
 			
 			// Add current message
-			context.push({ role: 'user', content: `${window.sessionManager.userName}: ${message}` });
+			context.push({ role: 'user', content: `${window.sessionManager.userName}: ${userMessage}` });
 		} else {
 			// Not in session, just add current message
-			context.push({ role: 'user', content: message });
+			// Use userMessage (which includes fallback text for image-only uploads)
+			context.push({ role: 'user', content: userMessage });
 		}
 		// Search for matching physics textbook sections
-		const searchResults = await searchPhysicsTextbook(message);
+		const searchResults = await searchPhysicsTextbook(userMessage || message);
 
 		// Build a url lookup map: source name -> url (for YouTube links)
 		const sourceUrlMap = {};

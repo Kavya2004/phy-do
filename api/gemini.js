@@ -1,3 +1,22 @@
+import pdfParse from 'pdf-parse';
+
+function decodeBase64Data(dataUrl) {
+  const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+  return Buffer.from(base64, 'base64');
+}
+
+async function extractPdfText(dataUrl) {
+  try {
+    const buffer = decodeBase64Data(dataUrl);
+    const pdfData = await pdfParse(buffer);
+    const cleaned = (pdfData.text || '').replace(/\s+/g, ' ').trim();
+    return cleaned.slice(0, 14000) + (cleaned.length > 14000 ? '...' : '');
+  } catch (err) {
+    console.error('PDF extraction failed:', err);
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -37,7 +56,11 @@ export default async function handler(req, res) {
       if (files && files.length > 0 && geminiMessages.length > 0) {
           const lastUserMsg = geminiMessages[geminiMessages.length - 1];
           if (lastUserMsg.role === 'user') {
-              files.forEach(file => {
+              const attachmentNotes = [];
+
+              for (const file of files) {
+                  attachmentNotes.push(`- ${file.name} (${file.type})`);
+
                   if (file.type.startsWith('image/')) {
                       const base64Data = file.data.includes(',') ? file.data.split(',')[1] : file.data;
                       if (base64Data && base64Data.length > 0) {
@@ -48,8 +71,21 @@ export default async function handler(req, res) {
                               }
                           });
                       }
+                      if (file.ocrText && file.ocrText.trim()) {
+                          const ocrText = file.ocrText.trim().slice(0, 5000);
+                          lastUserMsg.parts.push({ text: `OCR text from image ${file.name}: ${ocrText}` });
+                      }
+                  } else if (file.type === 'application/pdf') {
+                      const pdfText = await extractPdfText(file.data);
+                      if (pdfText) {
+                          lastUserMsg.parts.push({ text: `Extracted text from PDF ${file.name}: ${pdfText}` });
+                      }
                   }
-              });
+              }
+
+              if (attachmentNotes.length > 0) {
+                  lastUserMsg.parts[0].text += `\n\nAttached files:\n${attachmentNotes.join('\n')}\nPlease use the contents of these attachments to answer the user's question.`;
+              }
           }
       }
 
