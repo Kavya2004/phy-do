@@ -583,9 +583,17 @@ function _addMessageInternal(text, sender, files = [], citation = null, silent =
 	avatar.innerHTML = sender === 'bot' ? '🤖' : '👤';
 
 	// Convert LaTeX to Unicode for bot messages
+	// Protect $...$ and $$...$$ blocks from unicode conversion so KaTeX can render them
 	let displayText = text;
 	if (sender === 'bot' && window.convertLatexToUnicode) {
-		displayText = window.convertLatexToUnicode(text);
+		// Temporarily pull out math blocks before unicode conversion
+		const mathBlocks = [];
+		let protected_text = displayText
+			.replace(/\$\$[\s\S]+?\$\$/g, (m) => { mathBlocks.push(m); return `\x00MATH${mathBlocks.length - 1}\x00`; })
+			.replace(/\$[^$\n]+?\$/g,      (m) => { mathBlocks.push(m); return `\x00MATH${mathBlocks.length - 1}\x00`; });
+		protected_text = window.convertLatexToUnicode(protected_text);
+		// Restore math blocks
+		displayText = protected_text.replace(/\x00MATH(\d+)\x00/g, (_, i) => mathBlocks[i]);
 	}
 
 	const content = document.createElement('div');
@@ -664,6 +672,31 @@ function _addMessageInternal(text, sender, files = [], citation = null, silent =
 	messageDiv.appendChild(content);
 	chatMessages.appendChild(messageDiv);
 	chatMessages.scrollTop = chatMessages.scrollHeight;
+
+	// Render LaTeX math in this message using KaTeX
+	if (sender === 'bot') {
+		const renderKatex = () => {
+			if (window.renderMathInElement) {
+				renderMathInElement(content, {
+					delimiters: [
+						{ left: '$$', right: '$$', display: true },
+						{ left: '$',  right: '$',  display: false },
+						{ left: '\\(', right: '\\)', display: false },
+						{ left: '\\[', right: '\\]', display: true }
+					],
+					throwOnError: false,
+					output: 'html'
+				});
+				chatMessages.scrollTop = chatMessages.scrollHeight;
+			}
+		};
+		// KaTeX scripts are deferred — wait for them if not yet ready
+		if (window.renderMathInElement) {
+			renderKatex();
+		} else {
+			window.addEventListener('load', renderKatex, { once: true });
+		}
+	}
 
 	if (window.sessionManager && window.sessionManager.sessionId) {
 		window.sessionManager.broadcastMessage(text, sender, files);
