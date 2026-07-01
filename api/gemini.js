@@ -1,4 +1,4 @@
-import pdfParse from 'pdf-parse';
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 
 function decodeBase64Data(dataUrl) {
   const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;

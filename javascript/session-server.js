@@ -12,6 +12,14 @@ import { connectMongo, createSessionRecord, addStudentToSession } from '../confi
 import userActivityRouter from '../routes/user-activity.js';
 import chatHistoryRouter from '../routes/chat-history.js';
 
+// API handlers
+import geminiHandler from '../api/gemini.js';
+import searchHandler from '../api/search.js';
+import pineconeHandler from '../api/pinecone.js';
+import pdfContentHandler from '../api/pdf-content.js';
+import pdfPageHandler from '../api/pdf-page.js';
+import imageGenHandler from '../api/image-gen.js';
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
@@ -36,6 +44,16 @@ app.use('/api/user-activity', userActivityRouter);
 
 // Chat history persistence
 app.use('/api/chat-history', chatHistoryRouter);
+
+// Core AI + search API routes
+app.post('/api/gemini', (req, res) => geminiHandler(req, res));
+app.post('/api/search', (req, res) => searchHandler(req, res));
+app.post('/api/pinecone', (req, res) => pineconeHandler(req, res));
+app.post('/api/pdf-content', (req, res) => pdfContentHandler(req, res));
+app.post('/api/pdf-page', (req, res) => pdfPageHandler(req, res));
+app.post('/api/image-gen', (req, res) => imageGenHandler(req, res));
+// Handle OPTIONS preflight for all /api routes
+app.options('/api/:path', cors());
 
 const sessions = new Map();
 const sessionConnections = new Map(); 
