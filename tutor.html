@@ -89,19 +89,19 @@
 				transition: border-color 0.2s;
 			" />
 
-			<!-- Table + Session dropdowns -->
-			<div style="display: flex; gap: 14px; margin-bottom: 20px;">
-				<div style="flex: 1; text-align: left;">
+			<!-- Table + Session dropdowns — stacked vertically so they never overflow -->
+			<div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
+				<div style="text-align: left;">
 					<label
 						style="display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Table
 						#</label>
 					<select id="tableNumberSelect" style="
-						width: 100%; padding: 12px 10px; font-size: 15px;
+						width: 100%; padding: 12px 14px; font-size: 15px;
 						border: 2px solid #e0e0e0; border-radius: 10px;
 						outline: none; background: white; cursor: pointer;
 						transition: border-color 0.2s; box-sizing: border-box;
 					">
-						<option value="">— Table —</option>
+						<option value="">— Select Table —</option>
 						<option value="1">Table 1</option>
 						<option value="2">Table 2</option>
 						<option value="3">Table 3</option>
@@ -115,17 +115,17 @@
 						<option value="11">Table 11</option>
 					</select>
 				</div>
-				<div style="flex: 1; text-align: left;">
+				<div style="text-align: left;">
 					<label
 						style="display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Session
 						#</label>
 					<select id="sessionNumberSelect" style="
-						width: 100%; padding: 12px 10px; font-size: 15px;
+						width: 100%; padding: 12px 14px; font-size: 15px;
 						border: 2px solid #e0e0e0; border-radius: 10px;
 						outline: none; background: white; cursor: pointer;
 						transition: border-color 0.2s; box-sizing: border-box;
 					">
-						<option value="">— Session —</option>
+						<option value="">— Select Session —</option>
 						<option value="1">Session 1</option>
 						<option value="2">Session 2</option>
 						<option value="3">Session 3</option>

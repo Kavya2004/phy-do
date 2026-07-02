@@ -1096,6 +1096,64 @@ async function searchPhysicsTextbook(query) {
 	}
 }
 
+// ── In-class history loader ──────────────────────────────────────────────────
+// Fetches all stored messages for this session from the in-class DB and
+// injects them into the AI context so the tutor knows every prior exchange.
+// Called once per session (guarded by window._inClassHistoryLoaded).
+async function loadInClassHistory() {
+	window._inClassHistoryLoaded = true; // set early to prevent concurrent calls
+	const sessionId = window._inClassSessionId || (window.sessionManager && window.sessionManager.sessionId);
+	if (!sessionId || !window._inClassMode) return;
+
+	const BACKEND = 'https://physics-ai-tutor.onrender.com';
+	try {
+		const res = await fetch(`${BACKEND}/api/in-class/chat?sessionId=${encodeURIComponent(sessionId)}`);
+		if (!res.ok) return;
+		const convos = await res.json();
+		if (!convos || convos.length === 0) return;
+
+		// Fetch each conversation's full messages and build a single history block
+		const allMessages = [];
+		await Promise.all(convos.map(async (convo) => {
+			try {
+				const fullRes = await fetch(`${BACKEND}/api/in-class/chat/${convo._id}`);
+				if (!fullRes.ok) return;
+				const full = await fullRes.json();
+				(full.messages || []).forEach(m => {
+					allMessages.push({
+						ts: new Date(m.timestamp).getTime(),
+						role: m.role,
+						content: m.content,
+						userName: m.userName || '',
+					});
+				});
+			} catch (_) {}
+		}));
+
+		if (allMessages.length === 0) return;
+
+		// Sort by timestamp so the history reads in order
+		allMessages.sort((a, b) => a.ts - b.ts);
+
+		// Inject as a system block so the AI sees it as background knowledge
+		const historyText = allMessages
+			.map(m => {
+				const who = m.role === 'bot' ? 'AI Tutor' : (m.userName || 'Student');
+				return `${who}: ${m.content}`;
+			})
+			.join('\n');
+
+		context.push({
+			role: 'system',
+			content: `PREVIOUS CONVERSATION HISTORY for this in-class session (${window._inClassSessionTitle || sessionId}).\nUse this to understand what has already been discussed with each student:\n\n${historyText.substring(0, 6000)}\n\nEnd of history.`,
+		});
+
+		console.log(`[in-class] Loaded ${allMessages.length} historical messages into context`);
+	} catch (e) {
+		console.warn('[in-class] Failed to load history:', e.message);
+	}
+}
+
 async function processUserMessage(message) {
 	if (isProcessing || (!message.trim() && uploadedFiles.length === 0)) return;
 
@@ -1176,38 +1234,38 @@ async function processUserMessage(message) {
 
 		// Add user message to context for AI
 		if (window.sessionManager && window.sessionManager.sessionId) {
-			// Get all chat messages from the current session
+			// In-class shared session: build context from the live shared chat
+			// plus any stored history for this session from the DB.
+			// Only rebuild from DOM if we don't have a pre-loaded history context.
+			if (!window._inClassHistoryLoaded) {
+				await loadInClassHistory();
+			}
+
+			// Append the current live exchange from the DOM (last 20 messages)
+			// so the AI sees what has happened in this session so far.
 			const chatMessages = document.querySelectorAll('.message');
-			const recentMessages = Array.from(chatMessages).slice(-10); // Last 10 messages
-			
+			const recentMessages = Array.from(chatMessages).slice(-20);
+
 			recentMessages.forEach(msgElement => {
-				const isBot = msgElement.classList.contains('bot-message');
+				const isBot    = msgElement.classList.contains('bot-message');
 				const isShared = msgElement.classList.contains('shared-message');
-				const content = msgElement.querySelector('.message-content');
-				
-				if (content) {
-					const messageText = content.textContent || content.innerText;
-					
-					if (isBot) {
-						context.push({ role: 'assistant', content: messageText });
-					} else if (isShared) {
-						// Extract username from shared message
-						const authorElement = msgElement.querySelector('.message-author');
-						const textElement = msgElement.querySelector('.message-text');
-						const author = authorElement ? authorElement.textContent : 'Student';
-						const text = textElement ? textElement.textContent : messageText;
-						context.push({ role: 'user', content: `${author}: ${text}` });
-					} else {
-						context.push({ role: 'user', content: messageText });
-					}
+				const contentEl = msgElement.querySelector('.message-content');
+				if (!contentEl) return;
+				const messageText = (contentEl.querySelector('.message-text') || contentEl).textContent.trim();
+				if (!messageText) return;
+
+				if (isBot) {
+					context.push({ role: 'assistant', content: messageText });
+				} else {
+					const author = msgElement.querySelector('.message-author')?.textContent?.trim() || 'Student';
+					context.push({ role: 'user', content: `${author}: ${messageText}` });
 				}
 			});
-			
-			// Add current message
+
+			// Add current message attributed to this student
 			context.push({ role: 'user', content: `${window.sessionManager.userName}: ${userMessage}` });
 		} else {
-			// Not in session, just add current message
-			// Use userMessage (which includes fallback text for image-only uploads)
+			// Not in session — just add current message
 			context.push({ role: 'user', content: userMessage });
 		}
 		// Search for matching physics textbook sections
@@ -1312,7 +1370,12 @@ async function processUserMessage(message) {
 		
 		// Handle bot response display/broadcasting
 		if (window.sessionManager && window.sessionManager.sessionId) {
+			// Broadcast to all session participants (they see it via addSharedMessage)
 			window.sessionManager.broadcastMessage(botResponse, 'bot');
+			// Also save to in-class DB and auto-title from this client
+			if (window.chatHistoryManager) {
+				window.chatHistoryManager.autoTitle(message, botResponse);
+			}
 		} else {
 			addMessage(botResponse, 'bot', [], extractedCitation);
 			// Auto-generate conversation title from the first exchange

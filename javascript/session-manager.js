@@ -49,6 +49,8 @@ class SessionManager {
         const name  = window._inClassStudentName || email.split('@')[0] || 'Student';
         this.userName  = name;
         this.userEmail = email;
+        // Reset history flag so it loads fresh for this session
+        window._inClassHistoryLoaded = false;
         this.joinSession(window._inClassSessionId, window._inClassTableNumber || 0);
         this.showInClassBanner(window._inClassSessionTitle || '');
         window._inClassSessionId = null;
