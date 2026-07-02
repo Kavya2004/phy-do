@@ -208,6 +208,17 @@
 				} else if (window.createChatControls) {
 					window.createChatControls();
 				}
+
+				// For in-class: join the shared session now that everything is ready.
+				// We defer slightly so initializeChat() finishes setting up the DOM first.
+				if (window._inClassMode) {
+					setTimeout(() => {
+						if (window.sessionManager && typeof window.sessionManager.joinInClassSession === 'function') {
+							window.sessionManager.joinInClassSession();
+						}
+					}, 300);
+				}
+
 				setTimeout(() => {
 					if (window.initializeChat) window.initializeChat();
 					else if (window.createChatControls) window.createChatControls();

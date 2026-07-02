@@ -107,23 +107,50 @@ async function getChatModel() {
   return getInClassChatModel();
 }
 
+// GET /api/in-class/chat/by-session/:sessionId
+// Find the shared session chat record, or create it if it doesn't exist yet.
+// All students at the same table share this single record.
+router.get('/chat/by-session/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+  try {
+    const Convo = await getChatModel();
+    let doc = await Convo.findOne({ sessionId });
+    if (!doc) {
+      // First student to hit this endpoint — create the shared record
+      // We don't know sessionTitle/tableNumber yet so use placeholders;
+      // they get updated when the first POST /chat comes in.
+      return res.status(404).json({ error: 'not found' });
+    }
+    res.json(doc);
+  } catch (err) {
+    res.status(503).json({ error: err.message });
+  }
+});
+
 // POST /api/in-class/chat
-// Create a new in-class chat conversation record.
+// Create the shared session chat record (one per session, shared by all students).
 // Body: { sessionId, sessionTitle, tableNumber, sessionNumber, email, title? }
+// Idempotent — if a record for this sessionId already exists, returns it.
 router.post('/chat', async (req, res) => {
   const { sessionId, sessionTitle, tableNumber, sessionNumber, email, title } = req.body;
-  if (!sessionId || !email || !tableNumber || !sessionNumber) {
-    return res.status(400).json({ error: 'sessionId, email, tableNumber, sessionNumber required' });
+  if (!sessionId || !tableNumber || !sessionNumber) {
+    return res.status(400).json({ error: 'sessionId, tableNumber, sessionNumber required' });
   }
   try {
     const Convo = await getChatModel();
+    // Return existing shared record if already created by another student
+    const existing = await Convo.findOne({ sessionId });
+    if (existing) {
+      return res.json(existing);
+    }
     const doc = await Convo.create({
       sessionId,
       sessionTitle: sessionTitle || `Table ${tableNumber} Session ${sessionNumber}`,
       tableNumber: Number(tableNumber),
       sessionNumber: Number(sessionNumber),
-      email: email.trim().toLowerCase(),
-      title: title || 'In-Class Conversation',
+      email: (email || '').trim().toLowerCase(), // first student who triggered creation
+      title: title || sessionTitle || `Table ${tableNumber} Session ${sessionNumber}`,
       messages: [],
     });
     res.json(doc);

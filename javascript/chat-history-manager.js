@@ -377,25 +377,37 @@
   async function initInClass(email) {
     _inClassMode = true;
     _email = email;
-    _inClassSessionId = window._inClassSessionId || '';
-    _inClassSessionTitle = window._inClassSessionTitle || '';
-    _inClassTableNumber = Number(window._inClassTableNumber || 0);
+    _inClassSessionId     = window._inClassSessionId     || '';
+    _inClassSessionTitle  = window._inClassSessionTitle  || '';
+    _inClassTableNumber   = Number(window._inClassTableNumber  || 0);
     _inClassSessionNumber = Number(window._inClassSessionNumber || 0);
 
     console.log('[in-class chat] init for', email, _inClassSessionTitle);
 
     try {
-      const doc = await inClassApiPost('/api/in-class/chat', {
-        sessionId: _inClassSessionId,
-        sessionTitle: _inClassSessionTitle,
-        tableNumber: _inClassTableNumber,
-        sessionNumber: _inClassSessionNumber,
-        email: email.trim().toLowerCase(),
-        title: 'In-Class Conversation',
-      });
-      _inClassConvoId = doc._id;
+      // First try to find the existing shared record for this session
+      const findRes = await fetch(`${BACKEND}/api/in-class/chat/by-session/${encodeURIComponent(_inClassSessionId)}`);
+
+      if (findRes.ok) {
+        // Shared record already exists — reuse it
+        const existing = await findRes.json();
+        _inClassConvoId = existing._id;
+        console.log('[in-class chat] joined existing shared record:', _inClassConvoId);
+      } else {
+        // First student — create the shared record
+        const doc = await inClassApiPost('/api/in-class/chat', {
+          sessionId:     _inClassSessionId,
+          sessionTitle:  _inClassSessionTitle,
+          tableNumber:   _inClassTableNumber,
+          sessionNumber: _inClassSessionNumber,
+          email:         email.trim().toLowerCase(),
+          title:         _inClassSessionTitle,
+        });
+        _inClassConvoId = doc._id;
+        console.log('[in-class chat] created shared session record:', _inClassConvoId);
+      }
+
       _inClassReady = true;
-      console.log('[in-class chat] conversation created:', _inClassConvoId);
       if (_inClassQueue.length > 0) flushInClassQueue();
     } catch (e) {
       console.warn('[in-class chat] init failed:', e.message);
@@ -434,7 +446,9 @@
     isInClassMode: () => _inClassMode,
     appendMessage(role, content, userName) {
       if (_inClassMode) {
-        _inClassQueue.push({ role, content, userName: userName || '', timestamp: new Date() });
+        // For in-class, every message goes into the shared session record.
+        // userName identifies who said it in the shared transcript.
+        _inClassQueue.push({ role, content, userName: userName || _email || '', timestamp: new Date() });
         setTimeout(flushInClassQueue, 800);
       } else {
         _messageQueue.push({ role, content, timestamp: new Date() });

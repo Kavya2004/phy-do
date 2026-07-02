@@ -35,30 +35,33 @@ class SessionManager {
     const sessionId = urlParams.get("session");
     if (sessionId) {
       this.joinSessionFromURL(sessionId);
-    } else {
-      // Check if student came in via in-class flow (table + session picker)
-      this.maybeAutoJoinInClassSession();
     }
+    // In-class joining is triggered externally via joinInClassSession()
+    // called from revealTutor() in tutor.html after login completes.
   }
 
-  maybeAutoJoinInClassSession() {
-    const check = () => {
-      if (window._inClassSessionId) {
-        const email = window.studentEmail || '';
-        // Use the name the student typed in the modal; fall back to email prefix
-        const name  = window._inClassStudentName || email.split('@')[0] || 'Student';
-        this.userName  = name;
-        this.userEmail = email;
-        // Reset history flag so it loads fresh for this session
-        window._inClassHistoryLoaded = false;
-        this.joinSession(window._inClassSessionId, window._inClassTableNumber || 0);
-        this.showInClassBanner(window._inClassSessionTitle || '');
-        window._inClassSessionId = null;
-      }
-    };
-    check();
-    setTimeout(check, 400);
-    setTimeout(check, 900);
+  // Called directly from tutor.html after the student finishes the in-class modal.
+  // All window._inClass* vars are guaranteed to be set at this point.
+  async joinInClassSession() {
+    const sessionId     = window._inClassSessionId;
+    const sessionTitle  = window._inClassSessionTitle  || '';
+    const tableNumber   = window._inClassTableNumber   || 0;
+    const email         = window.studentEmail          || '';
+    const name          = window._inClassStudentName   || email.split('@')[0] || 'Student';
+
+    if (!sessionId) {
+      console.warn('[in-class] joinInClassSession called but _inClassSessionId is not set');
+      return;
+    }
+
+    this.userName  = name;
+    this.userEmail = email;
+
+    // Reset history flag so the AI context loader runs fresh
+    window._inClassHistoryLoaded = false;
+
+    await this.joinSession(sessionId, tableNumber);
+    this.showInClassBanner(sessionTitle);
   }
 
   showInClassBanner(sessionTitle) {
@@ -792,6 +795,26 @@ class SessionManager {
           data.userName,
           data.files,
         );
+        // Keep the AI context in sync on all clients so every student's
+        // next message has full context of the shared conversation.
+        if (window._inClassMode && window.context !== undefined) {
+          // Use the module-level context array in tutor-chat.js
+          const role = data.sender === 'bot' ? 'assistant' : 'user';
+          const content = data.sender === 'bot'
+            ? data.message
+            : `${data.userName}: ${data.message}`;
+          // Only add if this message wasn't sent by me (sender already pushed it)
+          if (data.userName !== this.userName || data.sender === 'bot') {
+            window._pendingContextUpdate = window._pendingContextUpdate || [];
+            window._pendingContextUpdate.push({ role, content });
+          }
+        }
+        // Save incoming messages from others into the shared session record.
+        // (The sender's own messages are saved by _addMessageInternal in tutor-chat.js.)
+        if (window._inClassMode && data.userName !== this.userName && window.chatHistoryManager) {
+          const role = data.sender === 'bot' ? 'bot' : 'user';
+          window.chatHistoryManager.appendMessage(role, data.message, data.userName);
+        }
         break;
       case "participant_joined":
         const participant = this.participants.get(data.userName);

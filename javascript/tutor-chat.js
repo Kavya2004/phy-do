@@ -1102,7 +1102,10 @@ async function searchPhysicsTextbook(query) {
 // Called once per session (guarded by window._inClassHistoryLoaded).
 async function loadInClassHistory() {
 	window._inClassHistoryLoaded = true; // set early to prevent concurrent calls
-	const sessionId = window._inClassSessionId || (window.sessionManager && window.sessionManager.sessionId);
+
+	// Use the live session ID from sessionManager (the _inClassSessionId window
+	// var is cleared after join, so we read from sessionManager here)
+	const sessionId = window.sessionManager && window.sessionManager.sessionId;
 	if (!sessionId || !window._inClassMode) return;
 
 	const BACKEND = 'https://physics-ai-tutor.onrender.com';
@@ -1112,7 +1115,7 @@ async function loadInClassHistory() {
 		const convos = await res.json();
 		if (!convos || convos.length === 0) return;
 
-		// Fetch each conversation's full messages and build a single history block
+		// Fetch each conversation's full messages in parallel
 		const allMessages = [];
 		await Promise.all(convos.map(async (convo) => {
 			try {
@@ -1132,10 +1135,9 @@ async function loadInClassHistory() {
 
 		if (allMessages.length === 0) return;
 
-		// Sort by timestamp so the history reads in order
+		// Sort chronologically
 		allMessages.sort((a, b) => a.ts - b.ts);
 
-		// Inject as a system block so the AI sees it as background knowledge
 		const historyText = allMessages
 			.map(m => {
 				const who = m.role === 'bot' ? 'AI Tutor' : (m.userName || 'Student');
@@ -1143,14 +1145,16 @@ async function loadInClassHistory() {
 			})
 			.join('\n');
 
-		context.push({
+		// Insert history right after the system prompt (index 0)
+		context.splice(1, 0, {
 			role: 'system',
-			content: `PREVIOUS CONVERSATION HISTORY for this in-class session (${window._inClassSessionTitle || sessionId}).\nUse this to understand what has already been discussed with each student:\n\n${historyText.substring(0, 6000)}\n\nEnd of history.`,
+			content: `PREVIOUS CONVERSATION HISTORY for this in-class session (${window._inClassSessionTitle || sessionId}).\nUse this to understand what each student has already discussed so you can build on it and avoid repeating yourself:\n\n${historyText.substring(0, 6000)}\n\n--- End of history ---`,
 		});
 
-		console.log(`[in-class] Loaded ${allMessages.length} historical messages into context`);
+		console.log(`[in-class] Injected ${allMessages.length} historical messages into context`);
 	} catch (e) {
 		console.warn('[in-class] Failed to load history:', e.message);
+		window._inClassHistoryLoaded = false; // allow retry on next message
 	}
 }
 
@@ -1234,35 +1238,19 @@ async function processUserMessage(message) {
 
 		// Add user message to context for AI
 		if (window.sessionManager && window.sessionManager.sessionId) {
-			// In-class shared session: build context from the live shared chat
-			// plus any stored history for this session from the DB.
-			// Only rebuild from DOM if we don't have a pre-loaded history context.
+			// In-class shared session:
+			// 1. On first message, inject full DB history into context (once)
+			// 2. Flush any messages received from other clients via WebSocket
+			// 3. Append the current message
 			if (!window._inClassHistoryLoaded) {
 				await loadInClassHistory();
 			}
-
-			// Append the current live exchange from the DOM (last 20 messages)
-			// so the AI sees what has happened in this session so far.
-			const chatMessages = document.querySelectorAll('.message');
-			const recentMessages = Array.from(chatMessages).slice(-20);
-
-			recentMessages.forEach(msgElement => {
-				const isBot    = msgElement.classList.contains('bot-message');
-				const isShared = msgElement.classList.contains('shared-message');
-				const contentEl = msgElement.querySelector('.message-content');
-				if (!contentEl) return;
-				const messageText = (contentEl.querySelector('.message-text') || contentEl).textContent.trim();
-				if (!messageText) return;
-
-				if (isBot) {
-					context.push({ role: 'assistant', content: messageText });
-				} else {
-					const author = msgElement.querySelector('.message-author')?.textContent?.trim() || 'Student';
-					context.push({ role: 'user', content: `${author}: ${messageText}` });
-				}
-			});
-
-			// Add current message attributed to this student
+			// Flush pending context updates from other students' messages
+			if (window._pendingContextUpdate && window._pendingContextUpdate.length > 0) {
+				window._pendingContextUpdate.forEach(entry => context.push(entry));
+				window._pendingContextUpdate = [];
+			}
+			// Append current message attributed to this student
 			context.push({ role: 'user', content: `${window.sessionManager.userName}: ${userMessage}` });
 		} else {
 			// Not in session — just add current message
