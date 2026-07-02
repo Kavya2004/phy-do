@@ -325,17 +325,129 @@
     if (_messageQueue.length > 0) flushQueue();
   }
 
+  // ─── In-Class mode ────────────────────────────────────────────────────────
+  // When a student is in-class, all chat history is stored in the separate
+  // in-class DB under /api/in-class/chat. We switch the endpoints here.
+
+  let _inClassMode = false;
+  let _inClassConvoId = null;
+  let _inClassSessionId = null;
+  let _inClassSessionTitle = null;
+  let _inClassTableNumber = null;
+  let _inClassSessionNumber = null;
+  let _inClassWriting = false;
+  let _inClassQueue = [];
+  let _inClassReady = false;
+  let _inClassTitleSet = false;
+
+  async function inClassApiPost(path, body) {
+    const r = await fetch(`${BACKEND}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`POST ${path} → ${r.status}`);
+    return r.json();
+  }
+
+  async function inClassApiPatch(path, body) {
+    const r = await fetch(`${BACKEND}${path}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`PATCH ${path} → ${r.status}`);
+    return r.json();
+  }
+
+  async function flushInClassQueue() {
+    if (_inClassWriting || _inClassQueue.length === 0 || !_inClassConvoId || !_inClassReady) return;
+    _inClassWriting = true;
+    const batch = _inClassQueue.splice(0, _inClassQueue.length);
+    try {
+      await inClassApiPatch(`/api/in-class/chat/${_inClassConvoId}/messages`, { messages: batch });
+    } catch (e) {
+      console.warn('[in-class chat] flush failed:', e.message);
+      _inClassQueue.unshift(...batch);
+    }
+    _inClassWriting = false;
+    if (_inClassQueue.length > 0) flushInClassQueue();
+  }
+
+  async function initInClass(email) {
+    _inClassMode = true;
+    _email = email;
+    _inClassSessionId = window._inClassSessionId || '';
+    _inClassSessionTitle = window._inClassSessionTitle || '';
+    _inClassTableNumber = Number(window._inClassTableNumber || 0);
+    _inClassSessionNumber = Number(window._inClassSessionNumber || 0);
+
+    console.log('[in-class chat] init for', email, _inClassSessionTitle);
+
+    try {
+      const doc = await inClassApiPost('/api/in-class/chat', {
+        sessionId: _inClassSessionId,
+        sessionTitle: _inClassSessionTitle,
+        tableNumber: _inClassTableNumber,
+        sessionNumber: _inClassSessionNumber,
+        email: email.trim().toLowerCase(),
+        title: 'In-Class Conversation',
+      });
+      _inClassConvoId = doc._id;
+      _inClassReady = true;
+      console.log('[in-class chat] conversation created:', _inClassConvoId);
+      if (_inClassQueue.length > 0) flushInClassQueue();
+    } catch (e) {
+      console.warn('[in-class chat] init failed:', e.message);
+    }
+  }
+
+  async function autoTitleInClass(userMsg, botMsg) {
+    if (_inClassTitleSet || !_inClassConvoId) return;
+    _inClassTitleSet = true;
+    try {
+      const prompt = `Given this physics tutoring exchange, generate a short 4-7 word descriptive title (no quotes, no punctuation at end):\nStudent: ${userMsg}\nTutor: ${botMsg.substring(0, 300)}`;
+      const r = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: 'Generate a very short title (4-7 words, no quotes). Return ONLY the title text.' },
+            { role: 'user', content: prompt }
+          ]
+        })
+      });
+      const data = await r.json();
+      const title = (data.response || '').trim().replace(/^["']|["']$/g, '').substring(0, 60) || 'In-Class Discussion';
+      await inClassApiPatch(`/api/in-class/chat/${_inClassConvoId}/title`, { title });
+    } catch (e) {
+      console.warn('[in-class chat] autoTitle failed:', e.message);
+    }
+  }
+
   // ─── Public API ───────────────────────────────────────────────────────────
 
   window.chatHistoryManager = {
     init,
-    getCurrentConvoId: () => _currentId,
-    appendMessage(role, content) {
-      // Always queue — flushQueue will wait until _ready and _currentId are set
-      _messageQueue.push({ role, content, timestamp: new Date() });
-      setTimeout(flushQueue, 800);
+    initInClass,
+    getCurrentConvoId: () => _inClassMode ? _inClassConvoId : _currentId,
+    isInClassMode: () => _inClassMode,
+    appendMessage(role, content, userName) {
+      if (_inClassMode) {
+        _inClassQueue.push({ role, content, userName: userName || '', timestamp: new Date() });
+        setTimeout(flushInClassQueue, 800);
+      } else {
+        _messageQueue.push({ role, content, timestamp: new Date() });
+        setTimeout(flushQueue, 800);
+      }
     },
-    autoTitle,
+    autoTitle(userMsg, botMsg) {
+      if (_inClassMode) {
+        autoTitleInClass(userMsg, botMsg);
+      } else {
+        autoTitle(userMsg, botMsg);
+      }
+    },
     loadConversation,
     startNewConversation,
     refreshList: loadConvoList,

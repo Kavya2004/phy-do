@@ -704,7 +704,8 @@ function _addMessageInternal(text, sender, files = [], citation = null, silent =
 
 	// Persist to MongoDB (skip when replaying history)
 	if (!silent && window.chatHistoryManager) {
-		window.chatHistoryManager.appendMessage(sender === 'bot' ? 'bot' : 'user', text);
+		const userName = (window.sessionManager && window.sessionManager.userName) || '';
+		window.chatHistoryManager.appendMessage(sender === 'bot' ? 'bot' : 'user', text, userName);
 	}
 
 }

@@ -35,6 +35,59 @@ class SessionManager {
     const sessionId = urlParams.get("session");
     if (sessionId) {
       this.joinSessionFromURL(sessionId);
+    } else {
+      // Check if student came in via in-class flow (table + session picker)
+      this.maybeAutoJoinInClassSession();
+    }
+  }
+
+  maybeAutoJoinInClassSession() {
+    // window._inClassSessionId is set by the email gate after the student picks
+    // table + session number. We wait a short moment for all scripts to finish
+    // initializing before we auto-join.
+    const check = () => {
+      if (window._inClassSessionId) {
+        const email = window.studentEmail || '';
+        const name = email.split('@')[0] || 'Student';
+        this.userName = name;
+        this.userEmail = email;
+        this.joinSession(window._inClassSessionId, window._inClassTableNumber || 0);
+        // Show in-class banner
+        this.showInClassBanner(window._inClassSessionTitle || '');
+        // Clear so we don't re-join on refresh
+        window._inClassSessionId = null;
+      }
+    };
+    // Try immediately, then retry after short delays to handle async init order
+    check();
+    setTimeout(check, 400);
+    setTimeout(check, 900);
+  }
+
+  showInClassBanner(sessionTitle) {
+    // Remove existing banner if any
+    const existing = document.getElementById('inClassBanner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'inClassBanner';
+    banner.style.cssText = `
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 8px 16px; background: #881c1c; color: white;
+      font-size: 13px; font-weight: 600; text-align: center;
+      position: sticky; top: 0; z-index: 100; flex-shrink: 0;
+    `;
+    banner.innerHTML = `
+      <span>🏫 In-Class Mode</span>
+      <span style="opacity:0.7;">|</span>
+      <span>${sessionTitle}</span>
+      <span style="opacity:0.7;">|</span>
+      <span id="inClassParticipantCount" style="font-weight:400; font-size:12px;">Loading...</span>
+    `;
+
+    const chatContainer = document.querySelector('.chat-container');
+    if (chatContainer) {
+      chatContainer.insertBefore(banner, chatContainer.firstChild);
     }
   }
 
@@ -951,6 +1004,12 @@ class SessionManager {
     this.participants.clear();
     participants.forEach((p) => this.participants.set(p.userName, p));
     this.renderParticipants();
+    // Update in-class banner count if it exists
+    const countEl = document.getElementById('inClassParticipantCount');
+    if (countEl) {
+      const n = this.participants.size;
+      countEl.textContent = `${n} student${n !== 1 ? 's' : ''} in session`;
+    }
   }
 
   addParticipant(userName, participantData = null) {

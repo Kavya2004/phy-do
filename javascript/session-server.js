@@ -8,9 +8,10 @@ import { execFile } from 'child_process';
 import { existsSync } from 'fs';
 import { readFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
-import { connectMongo, createSessionRecord, addStudentToSession } from '../config/mongodb.js';
+import { connectMongo, createSessionRecord, addStudentToSession, connectInClassMongo } from '../config/mongodb.js';
 import userActivityRouter from '../routes/user-activity.js';
 import chatHistoryRouter from '../routes/chat-history.js';
+import inClassRouter from '../routes/in-class.js';
 
 // API handlers
 import geminiHandler from '../api/gemini.js';
@@ -44,6 +45,9 @@ app.use('/api/user-activity', userActivityRouter);
 
 // Chat history persistence
 app.use('/api/chat-history', chatHistoryRouter);
+
+// In-class data (separate DB)
+app.use('/api/in-class', inClassRouter);
 
 // Core AI + search API routes
 app.post('/api/gemini', (req, res) => geminiHandler(req, res));
@@ -307,6 +311,18 @@ app.get("/api/sessions/by-table/:tableNumber", (req, res) => {
     s => s.sessionTitle === `Table ${tableNumber}`
   );
   if (!session) return res.status(404).json({ error: `No active session found for Table ${tableNumber}` });
+  res.json({ sessionId: session.sessionId, sessionTitle: session.sessionTitle });
+});
+
+// Lookup by table number + session number (in-class mode)
+app.get("/api/sessions/by-table-session/:tableNumber/:sessionNumber", (req, res) => {
+  const tableNumber = Number(req.params.tableNumber);
+  const sessionNumber = Number(req.params.sessionNumber);
+  const sessionTitle = `Table ${tableNumber} Session ${sessionNumber}`;
+  const session = Array.from(sessions.values()).find(
+    s => s.sessionTitle === sessionTitle
+  );
+  if (!session) return res.status(404).json({ error: `No active session found for ${sessionTitle}` });
   res.json({ sessionId: session.sessionId, sessionTitle: session.sessionTitle });
 });
 
@@ -681,6 +697,7 @@ app.get("/dashboard", async (req, res) => {
 
 const PORT = process.env.PORT || 5001;
 connectMongo();
+connectInClassMongo();
 server.listen(PORT, () => {
   console.log(`Session server running on port ${PORT}`);
   console.log(
