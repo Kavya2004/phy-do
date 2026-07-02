@@ -73,27 +73,33 @@
 	">
 		<div style="
 			background: white; border-radius: 16px; padding: 40px 36px;
-			max-width: 400px; width: 90%; text-align: center;
+			max-width: 420px; width: 90%; text-align: center;
 			box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 		">
 			<div style="font-size: 40px; margin-bottom: 12px;">🏫</div>
 			<h2 style="color: #881c1c; margin: 0 0 6px; font-size: 1.5em;">In-Class Session</h2>
-			<p style="color: #666; margin: 0 0 24px; font-size: 0.9em;">Select your table and session to join your
-				classmates</p>
+			<p style="color: #666; margin: 0 0 24px; font-size: 0.9em;">Enter your name and select your table and
+				session</p>
 
-			<div style="display: flex; gap: 16px; margin-bottom: 20px;">
+			<!-- Name input -->
+			<input id="inClassNameInput" type="text" placeholder="Your first name" maxlength="30" style="
+				width: 100%; padding: 12px 14px; font-size: 15px;
+				border: 2px solid #e0e0e0; border-radius: 10px;
+				outline: none; box-sizing: border-box; margin-bottom: 14px;
+				transition: border-color 0.2s;
+			" />
+
+			<!-- Table + Session dropdowns -->
+			<div style="display: flex; gap: 14px; margin-bottom: 20px;">
 				<div style="flex: 1; text-align: left;">
 					<label
 						style="display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Table
-						Number</label>
+						#</label>
 					<select id="tableNumberSelect" style="
-						width: 100%; padding: 12px 14px; font-size: 15px;
+						width: 100%; padding: 12px 10px; font-size: 15px;
 						border: 2px solid #e0e0e0; border-radius: 10px;
 						outline: none; background: white; cursor: pointer;
-						transition: border-color 0.2s; appearance: none;
-						background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><path fill=%22%23666%22 d=%22M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z%22/></svg>');
-						background-repeat: no-repeat; background-position: right 12px center; background-size: 12px;
-						padding-right: 36px;
+						transition: border-color 0.2s; box-sizing: border-box;
 					">
 						<option value="">— Table —</option>
 						<option value="1">Table 1</option>
@@ -112,15 +118,12 @@
 				<div style="flex: 1; text-align: left;">
 					<label
 						style="display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Session
-						Number</label>
+						#</label>
 					<select id="sessionNumberSelect" style="
-						width: 100%; padding: 12px 14px; font-size: 15px;
+						width: 100%; padding: 12px 10px; font-size: 15px;
 						border: 2px solid #e0e0e0; border-radius: 10px;
 						outline: none; background: white; cursor: pointer;
-						transition: border-color 0.2s; appearance: none;
-						background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><path fill=%22%23666%22 d=%22M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z%22/></svg>');
-						background-repeat: no-repeat; background-position: right 12px center; background-size: 12px;
-						padding-right: 36px;
+						transition: border-color 0.2s; box-sizing: border-box;
 					">
 						<option value="">— Session —</option>
 						<option value="1">Session 1</option>
@@ -134,14 +137,14 @@
 			<div id="inClassError" style="color: #dc3545; font-size: 13px; margin-bottom: 12px; min-height: 18px;">
 			</div>
 
-			<button id="inClassJoinBtn" style="
+			<button id="inClassJoinBtn" type="button" style="
 				width: 100%; padding: 14px; font-size: 15px; font-weight: 600;
 				background: linear-gradient(135deg, #881c1c, #6e1616);
 				color: white; border: none; border-radius: 10px;
 				cursor: pointer; transition: opacity 0.2s;
 			">Join Session</button>
 
-			<button id="inClassBackBtn" style="
+			<button id="inClassBackBtn" type="button" style="
 				width: 100%; padding: 10px; font-size: 13px; font-weight: 500;
 				background: none; color: #888; border: none;
 				cursor: pointer; margin-top: 10px;
@@ -156,57 +159,62 @@
 			const input = document.getElementById('emailGateInput');
 			const btn = document.getElementById('emailGateBtn');
 			const err = document.getElementById('emailGateError');
+
 			input.addEventListener('focus', () => input.style.borderColor = '#881c1c');
 			input.addEventListener('blur', () => input.style.borderColor = '#e0e0e0');
 
-			// Focus style for selects
-			['tableNumberSelect', 'sessionNumberSelect'].forEach(id => {
-				const el = document.getElementById(id);
-				if (el) {
-					el.addEventListener('focus', () => el.style.borderColor = '#881c1c');
-					el.addEventListener('blur', () => el.style.borderColor = '#e0e0e0');
-				}
+			// Focus styles for the in-class modal inputs
+			const inClassName = document.getElementById('inClassNameInput');
+			const tableSelect = document.getElementById('tableNumberSelect');
+			const sessionSelect = document.getElementById('sessionNumberSelect');
+
+			[inClassName, tableSelect, sessionSelect].forEach(el => {
+				if (!el) return;
+				el.addEventListener('focus', () => el.style.borderColor = '#881c1c');
+				el.addEventListener('blur', () => el.style.borderColor = '#e0e0e0');
 			});
 
-			// "Back" button on the in-class modal
+			// Back button — return to email gate
 			document.getElementById('inClassBackBtn').addEventListener('click', () => {
 				document.getElementById('inClassModal').style.display = 'none';
 				gate.style.display = 'flex';
 				btn.disabled = false;
 				btn.textContent = 'Continue';
+				err.textContent = '';
 			});
 
-			function finishLogin(email) {
-				gate.style.opacity = '0';
-				gate.style.transition = 'opacity 0.3s';
+			// ── helpers ──────────────────────────────────────────────────────
+
+			function revealTutor(email) {
+				// Remove both overlays and show the tutor UI
+				gate.remove();
+				const inClassModal = document.getElementById('inClassModal');
+				if (inClassModal) inClassModal.remove();
+
+				const signOutBar = document.getElementById('signOutBar');
+				if (signOutBar) {
+					document.getElementById('signedInEmail').textContent = email;
+					signOutBar.style.display = 'flex';
+				}
+				if (window.chatHistoryManager) {
+					if (window._inClassMode) {
+						window.chatHistoryManager.initInClass(email);
+					} else {
+						window.chatHistoryManager.init(email);
+					}
+				}
+				if (window.initializeChat) {
+					window.initializeChat();
+				} else if (window.createChatControls) {
+					window.createChatControls();
+				}
 				setTimeout(() => {
-					gate.remove();
-					const signOutBar = document.getElementById('signOutBar');
-					if (signOutBar) {
-						document.getElementById('signedInEmail').textContent = email;
-						signOutBar.style.display = 'flex';
-					}
-					if (window.chatHistoryManager) {
-						if (window._inClassMode) {
-							// In-class: write to separate DB; skip out-of-class sidebar
-							window.chatHistoryManager.initInClass(email);
-						} else {
-							window.chatHistoryManager.init(email);
-						}
-					}
-					if (window.initializeChat) {
-						window.initializeChat();
-					} else if (window.createChatControls) {
-						window.createChatControls();
-					}
-					setTimeout(() => {
-						if (window.initializeChat) window.initializeChat();
-						else if (window.createChatControls) window.createChatControls();
-					}, 200);
-				}, 300);
+					if (window.initializeChat) window.initializeChat();
+					else if (window.createChatControls) window.createChatControls();
+				}, 200);
 			}
 
-			async function recordLogin(email) {
+			async function recordOutOfClassLogin(email) {
 				try {
 					const resp = await fetch(`${BACKEND}/api/user-activity/login`, {
 						method: 'POST',
@@ -220,7 +228,7 @@
 				}
 			}
 
-			async function joinOrCreateInClassSession(email, tableNumber, sessionNumber) {
+			async function joinOrCreate(email, name, tableNumber, sessionNumber) {
 				const sessionTitle = `Table ${tableNumber} Session ${sessionNumber}`;
 				const joinBtn = document.getElementById('inClassJoinBtn');
 				const inClassErr = document.getElementById('inClassError');
@@ -230,93 +238,86 @@
 				inClassErr.textContent = '';
 
 				try {
-					// Try to find an existing session for this table+session combo
-					const lookupRes = await fetch(`${BACKEND}/api/sessions/by-table-session/${tableNumber}/${sessionNumber}`);
+					// Look for an existing in-memory session for this table+session
+					const lookupRes = await fetch(
+						`${BACKEND}/api/sessions/by-table-session/${tableNumber}/${sessionNumber}`
+					);
 
 					let sessionId;
 					if (lookupRes.ok) {
-						const data = await lookupRes.json();
-						sessionId = data.sessionId;
+						sessionId = (await lookupRes.json()).sessionId;
 					} else {
-						// No session exists — create one (first student at this table becomes host)
+						// First student — create the session
 						const createRes = await fetch(`${BACKEND}/api/sessions/create`, {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/json' },
 							body: JSON.stringify({
-								hostName: email.split('@')[0],
+								hostName: name,
 								avatar: '🎓',
 								color: '#881c1c',
 								isPublic: true,
-								sessionTitle: sessionTitle,
+								sessionTitle,
 								userEmail: email,
 							}),
 						});
 						if (!createRes.ok) throw new Error('Failed to create session');
-						const createData = await createRes.json();
-						sessionId = createData.sessionId;
+						sessionId = (await createRes.json()).sessionId;
 
-						// Persist this new session to in-class DB
+						// Persist to in-class DB (fire-and-forget)
 						fetch(`${BACKEND}/api/in-class/sessions`, {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/json' },
 							body: JSON.stringify({
-								sessionId,
-								sessionTitle,
+								sessionId, sessionTitle,
 								tableNumber: Number(tableNumber),
 								sessionNumber: Number(sessionNumber),
-								hostName: email.split('@')[0],
-								hostEmail: email,
+								hostName: name, hostEmail: email,
 							}),
 						}).catch(() => { });
 					}
 
-					// Store session info for session-manager to pick up after login
+					// Stash everything on window for session-manager + chat-history-manager
 					window._inClassSessionId = sessionId;
 					window._inClassSessionTitle = sessionTitle;
 					window._inClassTableNumber = tableNumber;
 					window._inClassSessionNumber = sessionNumber;
+					window._inClassStudentName = name;
 					window._inClassMode = true;
 
-					// Record in-class login + attendance in the in-class DB
-					try {
-						const loginResp = await fetch(`${BACKEND}/api/in-class/activity/login`, {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								email,
-								tableNumber: Number(tableNumber),
-								sessionNumber: Number(sessionNumber),
-								sessionId,
-							}),
-						});
-						const loginData = await loginResp.json();
-						window._inClassActivityId = loginData.activityId || null;
-					} catch (_) {
-						window._inClassActivityId = null;
-					}
+					// Record in-class login (non-blocking)
+					fetch(`${BACKEND}/api/in-class/activity/login`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							email, tableNumber: Number(tableNumber),
+							sessionNumber: Number(sessionNumber), sessionId,
+						}),
+					}).then(r => r.json())
+						.then(d => { window._inClassActivityId = d.activityId || null; })
+						.catch(() => { window._inClassActivityId = null; });
 
-					// Record student attendance in in-class DB
+					// Record attendance (non-blocking)
 					fetch(`${BACKEND}/api/in-class/sessions/${sessionId}/join`, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({
-							name: email.split('@')[0],
-							email,
+							name, email,
 							tableNumber: Number(tableNumber),
 							sessionNumber: Number(sessionNumber),
 						}),
 					}).catch(() => { });
 
-					// Close in-class modal, complete login flow
-					document.getElementById('inClassModal').style.display = 'none';
-					finishLogin(email);
+					revealTutor(email);
 
 				} catch (e) {
-					inClassErr.textContent = 'Could not join session. Please try again.';
+					console.error('[in-class join]', e);
+					inClassErr.textContent = 'Could not connect to session. Please try again.';
 					joinBtn.disabled = false;
 					joinBtn.textContent = 'Join Session';
 				}
 			}
+
+			// ── email gate submit ─────────────────────────────────────────────
 
 			async function submit() {
 				const val = input.value.trim().toLowerCase();
@@ -327,46 +328,59 @@
 				}
 				btn.disabled = true;
 				btn.textContent = 'Signing in...';
+				err.textContent = '';
 
 				const location = document.querySelector('input[name="location"]:checked').value;
-
-				// Record login in MongoDB (non-blocking)
-				await recordLogin(val);
 				window.studentEmail = val;
 
 				if (location === 'in_class') {
-					// Show the in-class session picker
+					// Show the in-class modal; record out-of-class login separately
 					gate.style.display = 'none';
-					const modal = document.getElementById('inClassModal');
-					modal.style.display = 'flex';
-
-					// Wire up join button (only once)
-					const joinBtn = document.getElementById('inClassJoinBtn');
-					joinBtn.disabled = false;
-					joinBtn.textContent = 'Join Session';
+					document.getElementById('inClassModal').style.display = 'flex';
+					// Reset the modal state cleanly
+					inClassName.value = '';
+					tableSelect.value = '';
+					sessionSelect.value = '';
 					document.getElementById('inClassError').textContent = '';
-
-					joinBtn.onclick = () => {
-						const tableNumber = document.getElementById('tableNumberSelect').value;
-						const sessionNumber = document.getElementById('sessionNumberSelect').value;
-						if (!tableNumber) {
-							document.getElementById('inClassError').textContent = 'Please select a table number.';
-							return;
-						}
-						if (!sessionNumber) {
-							document.getElementById('inClassError').textContent = 'Please select a session number.';
-							return;
-						}
-						joinOrCreateInClassSession(val, tableNumber, sessionNumber);
-					};
+					document.getElementById('inClassJoinBtn').disabled = false;
+					document.getElementById('inClassJoinBtn').textContent = 'Join Session';
+					inClassName.focus();
 				} else {
-					// At Home — normal flow, no session
-					finishLogin(val);
+					// At Home — normal out-of-class flow
+					await recordOutOfClassLogin(val);
+					revealTutor(val);
 				}
 			}
 
+			// ── in-class join button ──────────────────────────────────────────
+			// Attached once here, not re-attached on each submit()
+			document.getElementById('inClassJoinBtn').addEventListener('click', () => {
+				const name = inClassName.value.trim();
+				const table = tableSelect.value;
+				const session = sessionSelect.value;
+				const inClassErr = document.getElementById('inClassError');
+
+				if (!name) {
+					inClassErr.textContent = 'Please enter your name.';
+					inClassName.focus();
+					return;
+				}
+				if (!table) {
+					inClassErr.textContent = 'Please select a table number.';
+					return;
+				}
+				if (!session) {
+					inClassErr.textContent = 'Please select a session number.';
+					return;
+				}
+				joinOrCreate(window.studentEmail, name, table, session);
+			});
+
 			btn.addEventListener('click', submit);
 			input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+			inClassName.addEventListener('keydown', e => {
+				if (e.key === 'Enter') document.getElementById('inClassJoinBtn').click();
+			});
 		})();
 	</script>
 	<div class="tutor-container">

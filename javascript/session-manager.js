@@ -42,23 +42,18 @@ class SessionManager {
   }
 
   maybeAutoJoinInClassSession() {
-    // window._inClassSessionId is set by the email gate after the student picks
-    // table + session number. We wait a short moment for all scripts to finish
-    // initializing before we auto-join.
     const check = () => {
       if (window._inClassSessionId) {
         const email = window.studentEmail || '';
-        const name = email.split('@')[0] || 'Student';
-        this.userName = name;
+        // Use the name the student typed in the modal; fall back to email prefix
+        const name  = window._inClassStudentName || email.split('@')[0] || 'Student';
+        this.userName  = name;
         this.userEmail = email;
         this.joinSession(window._inClassSessionId, window._inClassTableNumber || 0);
-        // Show in-class banner
         this.showInClassBanner(window._inClassSessionTitle || '');
-        // Clear so we don't re-join on refresh
         window._inClassSessionId = null;
       }
     };
-    // Try immediately, then retry after short delays to handle async init order
     check();
     setTimeout(check, 400);
     setTimeout(check, 900);
@@ -799,7 +794,6 @@ class SessionManager {
       case "participant_joined":
         const participant = this.participants.get(data.userName);
         this.addParticipant(data.userName, participant);
-
         this.addSystemMessage(`${data.userName} joined the session`);
         break;
       case "participant_left":
@@ -889,8 +883,7 @@ class SessionManager {
     content.className = "message-content";
 
     const time = new Date(timestamp).toLocaleTimeString();
-    
-    // Convert LaTeX to Unicode for bot messages
+
     let displayText = message;
     if (sender === 'bot' && window.convertLatexToUnicode) {
       displayText = window.convertLatexToUnicode(message);
@@ -907,16 +900,16 @@ class SessionManager {
     }
 
     content.innerHTML = `
-            <div class="message-header">
-                <span class="message-author">${userName}</span>
-                <span class="message-time">${time}</span>
-            </div>
-            <div class="message-text">${displayText.replace(/\n/g, "<br>").replace(/<https?:\/\/[^>]+>/g, (match) => {
-              const url = match.slice(1, -1);
-              return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-            })}</div>
-            ${filesHtml}
-        `;
+      <div class="message-header">
+        <span class="message-author">${userName}</span>
+        <span class="message-time">${time}</span>
+      </div>
+      <div class="message-text">${displayText.replace(/\n/g, "<br>").replace(/<https?:\/\/[^>]+>/g, (match) => {
+        const url = match.slice(1, -1);
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+      })}</div>
+      ${filesHtml}
+    `;
 
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(content);
