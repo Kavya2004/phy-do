@@ -692,7 +692,11 @@ class SessionManager {
       this.addSystemMessage(`${this.userName} joined the session`);
     } catch (error) {
       console.error("Error joining session:", error);
-      this.showNotification("Failed to join session. Please check the session ID.", "error");
+      // Only show the error toast for manual joins, not in-class auto-joins
+      // (the session works fine even if the HTTP join call has a hiccup)
+      if (!window._inClassMode) {
+        this.showNotification("Failed to join session. Please check the session ID.", "error");
+      }
     }
   }
 
