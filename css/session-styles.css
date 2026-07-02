@@ -1,4 +1,3 @@
-
 .session-controls {
     display: flex;
     flex-direction: column;
@@ -23,7 +22,7 @@
     font-size: 12px;
     font-weight: 600;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0,123,255,0.2);
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
 }
 
 .session-toggle-btn:hover {
@@ -121,7 +120,7 @@
     align-items: center;
     transition: all 0.3s ease;
     box-shadow: 0 3px 6px rgba(136, 28, 28, 0.2);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .session-dropdown-btn:hover {
@@ -140,7 +139,7 @@
     background: #ffffff;
     border: 1px solid #d0ccc8;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 1000;
     max-height: 300px;
     overflow-y: auto;
@@ -157,6 +156,7 @@
         opacity: 0;
         transform: translateY(-10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -186,7 +186,7 @@
     transition: all 0.3s ease;
     white-space: nowrap;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     position: relative;
     overflow: hidden;
 }
@@ -198,7 +198,7 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     transition: left 0.5s;
 }
 
@@ -208,14 +208,14 @@
 
 .session-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .session-btn {
     background: linear-gradient(135deg, #881c1c, #a83232) !important;
     color: #ffffff !important;
     border: 1px solid #6e1616 !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
 }
 
 .session-btn:hover {
@@ -231,7 +231,7 @@
     background: linear-gradient(135deg, #881c1c, #a83232);
     color: #ffffff;
     border: 1px solid #6e1616;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .session-btn.leave-session:hover,
@@ -341,12 +341,12 @@
     border-radius: 12px;
     margin-bottom: 8px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
 }
 
 .participants-list:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
     transform: translateY(-1px);
 }
 
@@ -445,11 +445,11 @@
 .user-message .message-author {
     font-weight: 600;
     color: #ffffff;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .user-message .message-time {
-    color: rgba(255,255,255,0.8);
+    color: rgba(255, 255, 255, 0.8);
     font-size: 11px;
     font-weight: 500;
 }
@@ -564,54 +564,53 @@
     .session-controls {
         padding: 6px;
     }
-    
+
     .session-top-row {
         gap: 4px;
     }
-    
+
     .session-bottom-row {
         gap: 4px;
         grid-template-columns: 1fr 1fr 1fr;
     }
-    
+
     .session-btn {
         font-size: 10px;
         padding: 6px 8px;
     }
-    
+
     .session-dropdown-btn {
         font-size: 11px;
         padding: 6px 10px;
     }
-    
+
     .modal-content {
         width: 95%;
         margin: 10px;
     }
-    
+
     .file-preview {
         flex-direction: column;
     }
-    
+
     .file-item {
         width: 100%;
         justify-content: space-between;
     }
 }
 
-@keyframes slideIn {
+@keyframes msgFadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
     }
+
     to {
         opacity: 1;
-        transform: translateY(0);
     }
 }
 
 .slide-in {
-    animation: slideIn 0.3s ease-out;
+    animation: msgFadeIn 0.15s ease-out;
 }
 
 .connection-status {
@@ -853,7 +852,7 @@
     overflow: hidden;
     width: 100%;
     box-sizing: border-box;
-    min-width: 0; 
+    min-width: 0;
 }
 
 .participants-header {
@@ -901,21 +900,21 @@
     border: 1px solid #e9ecef;
     width: 100%;
     box-sizing: border-box;
-    min-width: 0; 
+    min-width: 0;
 }
 
 .participant-info {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 0; 
+    min-width: 0;
     flex: 1;
 }
 
 .participant-details {
     display: flex;
     flex-direction: column;
-    min-width: 0; 
+    min-width: 0;
     flex: 1;
 }
 
@@ -961,35 +960,35 @@
         flex-direction: column;
         gap: 6px;
     }
-    
+
     .session-btn {
         width: 100%;
         font-size: 11px;
         padding: 8px 10px;
         text-align: center;
     }
-    
+
     .participants-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 5px;
     }
-    
+
     .session-info {
         align-items: flex-start;
         width: 100%;
     }
-    
+
     .modal-content {
         width: 95%;
         min-width: 280px;
         margin: 10px;
     }
-    
+
     .avatar-selection {
         grid-template-columns: repeat(4, 1fr);
     }
-    
+
     .color-selection {
         grid-template-columns: repeat(4, 1fr);
     }
@@ -999,27 +998,27 @@
     .session-controls {
         padding: 6px;
     }
-    
+
     .session-btn {
         padding: 8px 10px;
         font-size: 11px;
         min-width: 70px;
         flex-shrink: 0;
     }
-    
+
     .session-dropdown-btn {
         font-size: 12px;
         padding: 8px 10px;
     }
-    
+
     .session-bottom-row {
         gap: 6px;
     }
-    
+
     .avatar-selection {
         grid-template-columns: repeat(3, 1fr);
     }
-    
+
     .color-selection {
         grid-template-columns: repeat(3, 1fr);
     }
@@ -1067,7 +1066,7 @@
     width: auto;
 }
 
-.privacy-option input[type="radio"]:checked + .privacy-label {
+.privacy-option input[type="radio"]:checked+.privacy-label {
     color: #007bff;
     font-weight: 600;
 }
@@ -1167,9 +1166,9 @@
 .public-sessions-list {
     max-height: 400px;
     overflow-y: auto;
-  }
-  
-  .public-session-item {
+}
+
+.public-session-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1180,79 +1179,79 @@
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-  }
-  
-  .public-session-item:hover {
+}
+
+.public-session-item:hover {
     background: #e3f2fd;
     border-color: #2196f3;
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  }
-  
-  .public-session-item:last-child {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.public-session-item:last-child {
     margin-bottom: 0;
-  }
-  
-  .session-details {
+}
+
+.session-details {
     flex: 1;
-  }
-  
-  .session-title {
+}
+
+.session-title {
     font-weight: 600;
     font-size: 16px;
     color: #333;
     margin-bottom: 5px;
-  }
-  
-  .session-meta {
+}
+
+.session-meta {
     display: flex;
     gap: 15px;
     font-size: 13px;
     color: #666;
-  }
-  
-  .host-name {
+}
+
+.host-name {
     font-weight: 500;
-  }
-  
-  .participant-count {
+}
+
+.participant-count {
     color: #881c1c;
     font-weight: 500;
-  }
-  
-  .join-arrow {
+}
+
+.join-arrow {
     font-size: 20px;
     color: #2196f3;
     font-weight: bold;
     transition: transform 0.2s ease;
-  }
-  
-  .public-session-item:hover .join-arrow {
+}
+
+.public-session-item:hover .join-arrow {
     transform: translateX(5px);
-  }
-  
-  .join-note {
+}
+
+.join-note {
     text-align: center;
     color: #666;
     font-style: italic;
     margin-top: 15px;
     margin-bottom: 0;
-  }
-  
-  @media (max-width: 768px) {
+}
+
+@media (max-width: 768px) {
     .session-meta {
-      flex-direction: column;
-      gap: 5px;
+        flex-direction: column;
+        gap: 5px;
     }
-    
+
     .public-session-item {
-      padding: 12px;
+        padding: 12px;
     }
-    
+
     .session-title {
-      font-size: 15px;
+        font-size: 15px;
     }
-  }
+}
 
 /* Additional styling for the new compact layout */
 .session-dropdown-content {
@@ -1281,7 +1280,7 @@
 /* Improved button hover effects */
 .session-btn:active {
     transform: translateY(0px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Better spacing for mobile */
@@ -1289,11 +1288,11 @@
     .session-controls {
         margin-bottom: 6px;
     }
-    
+
     .session-dropdown-btn {
         min-height: 36px;
     }
-    
+
     .session-btn {
         min-height: 32px;
     }
@@ -1306,9 +1305,17 @@
 }
 
 @keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 .session-btn:hover {
