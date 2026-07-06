@@ -82,8 +82,68 @@ class SessionManager {
       <span style="opacity:0.7;">|</span>
       <span>${sessionTitle}</span>
       <span style="opacity:0.7;">|</span>
-      <span id="inClassParticipantCount" style="font-weight:400; font-size:12px;">Loading...</span>
+      <div id="inClassParticipantsDropdown" style="position:relative; display:inline-block;">
+        <button id="inClassParticipantsBtn" style="
+          background: rgba(255,255,255,0.15);
+          border: 1px solid rgba(255,255,255,0.3);
+          color: white;
+          padding: 3px 10px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          white-space: nowrap;
+        ">
+          <span id="inClassParticipantCount">Participants</span>
+          <span id="inClassParticipantsArrow" style="font-size:9px; opacity:0.8;">▼</span>
+        </button>
+        <div id="inClassParticipantsList" style="
+          display: none;
+          position: absolute;
+          top: calc(100% + 6px);
+          left: 50%;
+          transform: translateX(-50%);
+          background: white;
+          color: #333;
+          border-radius: 10px;
+          box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+          min-width: 180px;
+          max-height: 260px;
+          overflow-y: auto;
+          z-index: 9999;
+          padding: 6px 0;
+        ">
+          <div style="padding: 6px 14px 4px; font-size: 11px; font-weight: 700; color: #881c1c; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f0f0f0; margin-bottom: 4px;">
+            Students in session
+          </div>
+          <div id="inClassParticipantsInner" style="padding: 0 4px;">
+            <div style="padding: 8px 10px; font-size: 12px; color: #999; text-align:center;">Loading...</div>
+          </div>
+        </div>
+      </div>
     `;
+
+    // Toggle dropdown on button click
+    setTimeout(() => {
+      const btn = document.getElementById('inClassParticipantsBtn');
+      const list = document.getElementById('inClassParticipantsList');
+      const arrow = document.getElementById('inClassParticipantsArrow');
+      if (btn && list) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isOpen = list.style.display === 'block';
+          list.style.display = isOpen ? 'none' : 'block';
+          if (arrow) arrow.textContent = isOpen ? '▼' : '▲';
+        });
+        document.addEventListener('click', () => {
+          list.style.display = 'none';
+          if (arrow) arrow.textContent = '▼';
+        });
+      }
+    }, 0);
 
     const chatContainer = document.querySelector('.chat-container');
     if (chatContainer) {
@@ -1026,11 +1086,33 @@ class SessionManager {
     this.participants.clear();
     participants.forEach((p) => this.participants.set(p.userName, p));
     this.renderParticipants();
-    // Update in-class banner count if it exists
+    this.updateInClassBanner();
+  }
+
+  updateInClassBanner() {
     const countEl = document.getElementById('inClassParticipantCount');
-    if (countEl) {
-      const n = this.participants.size;
-      countEl.textContent = `${n} student${n !== 1 ? 's' : ''} in session`;
+    const innerEl = document.getElementById('inClassParticipantsInner');
+    if (!countEl) return;
+
+    const n = this.participants.size;
+    countEl.textContent = `Participants (${n})`;
+
+    if (innerEl) {
+      if (n === 0) {
+        innerEl.innerHTML = `<div style="padding:8px 10px;font-size:12px;color:#999;text-align:center;">No students yet</div>`;
+      } else {
+        innerEl.innerHTML = Array.from(this.participants.values()).map(p => `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;transition:background 0.15s;" 
+               onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''">
+            <span style="
+              width:26px;height:26px;border-radius:50%;background:${p.color || '#6c757d'};
+              display:flex;align-items:center;justify-content:center;
+              font-size:14px;flex-shrink:0;
+            ">${p.avatar || '👤'}</span>
+            <span style="font-size:12px;font-weight:500;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.userName}</span>
+          </div>
+        `).join('');
+      }
     }
   }
 
@@ -1046,11 +1128,13 @@ class SessionManager {
       });
     }
     this.renderParticipants();
+    this.updateInClassBanner();
   }
 
   removeParticipant(userName) {
     this.participants.delete(userName);
     this.renderParticipants();
+    this.updateInClassBanner();
   }
 
   renderParticipants() {
