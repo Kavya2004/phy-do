@@ -60,8 +60,8 @@ class SessionManager {
     // Reset history flag so the AI context loader runs fresh
     window._inClassHistoryLoaded = false;
 
-    await this.joinSession(sessionId, tableNumber);
     this.showInClassBanner(sessionTitle);
+    await this.joinSession(sessionId, tableNumber);
   }
 
   showInClassBanner(sessionTitle) {
@@ -149,6 +149,9 @@ class SessionManager {
     if (chatContainer) {
       chatContainer.insertBefore(banner, chatContainer.firstChild);
     }
+
+    // Populate immediately in case participants are already known
+    this.updateInClassBanner();
   }
 
   createSessionButton() {
@@ -881,8 +884,12 @@ class SessionManager {
         }
         break;
       case "participant_joined":
-        const participant = this.participants.get(data.userName);
-        this.addParticipant(data.userName, participant);
+        this.addParticipant(data.userName, data.participant || {
+          userName: data.userName,
+          avatar: data.avatar || "👤",
+          color: data.color || "#6c757d",
+          joinedAt: data.timestamp || new Date().toISOString(),
+        });
         this.addSystemMessage(`${data.userName} joined the session`);
         break;
       case "participant_left":
