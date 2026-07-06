@@ -893,12 +893,33 @@ class SessionManager {
         }
         break;
       case "participant_joined":
-        this.addParticipant(data.userName, data.participant || {
-          userName: data.userName,
-          avatar: data.avatar || "👤",
-          color: data.color || "#6c757d",
-          joinedAt: data.timestamp || new Date().toISOString(),
-        });
+        // Fetch the authoritative participant list from the server so the
+        // count is always correct for existing clients, regardless of server version.
+        if (this.sessionId) {
+          fetch(`${BACKEND_URL}/api/sessions/${this.sessionId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(session => {
+              if (session && session.participants) {
+                this.updateParticipants(session.participants);
+              } else {
+                // Fallback: just add the participant locally
+                this.addParticipant(data.userName, {
+                  userName: data.userName,
+                  avatar: data.avatar || "👤",
+                  color: data.color || "#6c757d",
+                  joinedAt: data.timestamp || new Date().toISOString(),
+                });
+              }
+            })
+            .catch(() => {
+              this.addParticipant(data.userName, {
+                userName: data.userName,
+                avatar: data.avatar || "👤",
+                color: data.color || "#6c757d",
+                joinedAt: data.timestamp || new Date().toISOString(),
+              });
+            });
+        }
         this.addSystemMessage(`${data.userName} joined the session`);
         break;
       case "participant_left":
