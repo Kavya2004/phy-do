@@ -748,6 +748,15 @@ class SessionManager {
       this.isHost = false;
       this.sessionMessages = data.messages || [];
       this.currentSessionTitle = data.session?.sessionTitle || null;
+
+      // Pre-populate participants from the HTTP response so the banner
+      // shows names immediately without waiting for a WebSocket message
+      if (data.session?.participants) {
+        this.participants.clear();
+        data.session.participants.forEach(p => this.participants.set(p.userName, p));
+        this.updateInClassBanner();
+      }
+
       this.connectToSession();
       this.updateSessionUI();
       this.loadSessionHistory();
@@ -1101,25 +1110,39 @@ class SessionManager {
     const innerEl = document.getElementById('inClassParticipantsInner');
     if (!countEl) return;
 
-    const n = this.participants.size;
-    countEl.textContent = `Participants (${n})`;
-
     if (innerEl) {
-      if (n === 0) {
+      // Always include the current user, even if not yet in the participants map
+      const allParticipants = new Map(this.participants);
+      if (this.userName && !allParticipants.has(this.userName)) {
+        allParticipants.set(this.userName, {
+          userName: this.userName,
+          avatar: this.selectedAvatar || '👤',
+          color: this.selectedColor || '#6c757d',
+        });
+      }
+
+      if (allParticipants.size === 0) {
         innerEl.innerHTML = `<div style="padding:8px 10px;font-size:12px;color:#999;text-align:center;">No students yet</div>`;
       } else {
-        innerEl.innerHTML = Array.from(this.participants.values()).map(p => `
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;transition:background 0.15s;" 
-               onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''">
-            <span style="
-              width:26px;height:26px;border-radius:50%;background:${p.color || '#6c757d'};
-              display:flex;align-items:center;justify-content:center;
-              font-size:14px;flex-shrink:0;
-            ">${p.avatar || '👤'}</span>
-            <span style="font-size:12px;font-weight:500;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.userName}</span>
-          </div>
-        `).join('');
+        innerEl.innerHTML = Array.from(allParticipants.values()).map(p => {
+          const isMe = p.userName === this.userName;
+          return `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;transition:background 0.15s;"
+                 onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''">
+              <span style="
+                width:26px;height:26px;border-radius:50%;background:${p.color || '#6c757d'};
+                display:flex;align-items:center;justify-content:center;
+                font-size:14px;flex-shrink:0;
+              ">${p.avatar || '👤'}</span>
+              <span style="font-size:12px;font-weight:500;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.userName}</span>
+              ${isMe ? `<span style="font-size:10px;color:#881c1c;font-weight:600;margin-left:auto;flex-shrink:0;">(you)</span>` : ''}
+            </div>
+          `;
+        }).join('');
       }
+
+      // Keep count in sync with the full list
+      countEl.textContent = `Participants (${allParticipants.size})`;
     }
   }
 
