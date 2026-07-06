@@ -419,16 +419,7 @@ wss.on("connection", (ws, req) => {
           }
           sessionConnections.get(sessionId).push({ ws, userName });
         
-          broadcastToSession(
-            sessionId,
-            {
-              type: "participant_joined",
-              userName: userName,
-              timestamp: new Date().toISOString(),
-            },
-            ws,
-          );
-        
+          // Send session info only to the new joiner
           ws.send(
             JSON.stringify({
               type: "session_info",
@@ -437,12 +428,27 @@ wss.on("connection", (ws, req) => {
               participants: session.getParticipantsList(),
             }),
           );
+
+          // Notify existing participants that someone joined (for the system chat message)
+          broadcastToSession(
+            sessionId,
+            {
+              type: "participant_joined",
+              userName: userName,
+              timestamp: new Date().toISOString(),
+            },
+            ws, // exclude the new joiner themselves
+          );
         
-          ws.send(
-            JSON.stringify({
+          // Broadcast full participants list to ALL clients (including existing ones)
+          // so their participant count updates immediately
+          broadcastToSession(
+            sessionId,
+            {
               type: "participants_update",
               participants: session.getParticipantsList(),
-            }),
+            },
+            ws, // new joiner already got the list via session_info above
           );
         
           console.log(`${userName} connected to session ${sessionId}`);
