@@ -189,70 +189,39 @@
 
   // ── Build sticker tray HTML ──────────────────────────────────────────────────
   function buildStickerTray() {
-    const panel = document.getElementById('studentPanel');
-    if (!panel) return;
-
-    const tray = document.createElement('div');
-    tray.id = 'physicsStickerTray';
-    tray.style.cssText = `
-      display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 10px;
-      background: #f7f7f7; border-top: 1px solid #ddd;
-      align-items: center; overflow-x: auto;
-    `;
-
-    const label = document.createElement('span');
-    label.style.cssText = `font-size: 11px; font-weight: 700; color: #555;
-      text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; margin-right: 4px;`;
-    label.textContent = '🧲 Drag to board:';
-    tray.appendChild(label);
+    const tray = document.getElementById('physicsStickerTray');
+    if (!tray) return;
 
     STICKERS.forEach(sticker => {
       const blob = new Blob([sticker.svg], { type: 'image/svg+xml' });
       const url  = URL.createObjectURL(blob);
 
-      const wrap = document.createElement('div');
-      wrap.title = sticker.label;
-      wrap.draggable = true;
-      wrap.dataset.stickerId = sticker.id;
-      wrap.style.cssText = `
-        cursor: grab; border: 2px solid transparent; border-radius: 6px;
-        padding: 3px; background: white; transition: border-color 0.15s, transform 0.15s;
-        display: flex; flex-direction: column; align-items: center; gap: 2px;
-      `;
+      const chip = document.createElement('div');
+      chip.className = 'sticker-chip';
+      chip.title = sticker.label;
+      chip.draggable = true;
+      chip.dataset.stickerId = sticker.id;
 
       const img = document.createElement('img');
       img.src = url;
       img.alt = sticker.label;
-      img.style.cssText = 'width: 48px; height: 48px; object-fit: contain; pointer-events: none;';
       img.dataset.svgSrc = sticker.svg;
 
       const lbl = document.createElement('span');
       lbl.textContent = sticker.label;
-      lbl.style.cssText = 'font-size: 9px; color: #555; white-space: nowrap;';
 
-      wrap.appendChild(img);
-      wrap.appendChild(lbl);
-
-      wrap.addEventListener('mouseenter', () => {
-        wrap.style.borderColor = '#881c1c';
-        wrap.style.transform = 'scale(1.1)';
-      });
-      wrap.addEventListener('mouseleave', () => {
-        wrap.style.borderColor = 'transparent';
-        wrap.style.transform = 'scale(1)';
-      });
+      chip.appendChild(img);
+      chip.appendChild(lbl);
 
       // Store SVG string on drag
-      wrap.addEventListener('dragstart', e => {
+      chip.addEventListener('dragstart', e => {
         e.dataTransfer.setData('text/plain', sticker.id);
         e.dataTransfer.effectAllowed = 'copy';
         window._dragStickerSvg = sticker.svg;
       });
 
-      tray.appendChild(wrap);
+      tray.appendChild(chip);
     });
-
-    panel.appendChild(tray);
   }
 
   // ── Stamp SVG onto canvas at drop position ───────────────────────────────────
@@ -303,10 +272,10 @@
     // Touch: tap a sticker chip to stamp at canvas centre (mobile fallback)
     const tray = document.getElementById('physicsStickerTray');
     if (tray) {
-      tray.querySelectorAll('[data-sticker-id]').forEach(wrap => {
-        const img = wrap.querySelector('img');
+      tray.querySelectorAll('.sticker-chip').forEach(chip => {
+        const img = chip.querySelector('img');
         if (!img) return;
-        wrap.addEventListener('click', () => {
+        chip.addEventListener('click', () => {
           const cx = canvas.width  / 2;
           const cy = canvas.height / 2;
           stampStickerOnCanvas(img.dataset.svgSrc, cx, cy);
