@@ -118,13 +118,6 @@ function setupWhiteboardControls() {
 			toggleDrawing('student');
 
 		});
-		
-		// Also add onclick as backup
-		drawStudentButton.onclick = function(e) {
-			e.preventDefault();
-
-			toggleDrawing('student');
-		};
 	} else {
 
 	}
@@ -957,9 +950,24 @@ function toggleDrawing(boardType) {
 					window.toggleStickerTray();
 				}
 			}
-			// Auto-send snapshot to tutor (small delay so final strokes are rendered)
+			// Auto-send snapshot to tutor only if there's something drawn
+			// (small delay so final strokes are rendered)
 			if (typeof window.sendWhiteboardToTutor === 'function') {
-				setTimeout(window.sendWhiteboardToTutor, 300);
+				setTimeout(() => {
+					const canvas = document.getElementById('studentWhiteboard');
+					const overlay = document.getElementById('stickerOverlay');
+					const hasStickers = overlay && overlay.querySelectorAll('.placed-sticker').length > 0;
+					let hasDrawing = false;
+					if (canvas) {
+						const imageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+						for (let i = 3; i < imageData.length; i += 4) {
+							if (imageData[i] > 10) { hasDrawing = true; break; }
+						}
+					}
+					if (hasDrawing || hasStickers) {
+						window.sendWhiteboardToTutor();
+					}
+				}, 300);
 			}
 		}
 	}
