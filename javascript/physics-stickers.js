@@ -281,22 +281,27 @@
     ].join(';');
 
     del.addEventListener('pointerdown', e => {
+      window._stickerActive = true;
       e.stopPropagation();
       e.preventDefault();
       el.remove();
       deselectAll();
+      setTimeout(() => { window._stickerActive = false; }, 0);
     });
 
     el.appendChild(img);
     el.appendChild(del);
     overlay.appendChild(el);
 
-    // Select/deselect on click
+    // Select/deselect on click — capture:true fires BEFORE canvas listeners
     el.addEventListener('pointerdown', e => {
-      e.stopPropagation(); // don't let canvas whiteboard capture this
+      window._stickerActive = true;          // tell canvas to stand down
+      e.stopPropagation();
       selectSticker(el);
       startDrag(e, el, overlay);
-    });
+      // clear flag after this event loop tick
+      setTimeout(() => { window._stickerActive = false; }, 0);
+    }, { capture: true });
 
     selectSticker(el); // auto-select when first placed
   }

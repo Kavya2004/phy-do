@@ -510,9 +510,11 @@ function setupCanvas(canvas, ctx, boardType) {
 	
 	// Add event listeners with proper binding
 	canvas.addEventListener('mousedown', (e) => {
+		// Stand down if a sticker is being interacted with
+		if (window._stickerActive) return;
+
 		e.preventDefault();
 		e.stopPropagation();
-	
 		handleMouseDown(e, boardType);
 	}, { passive: false });
 	
@@ -530,6 +532,8 @@ function setupCanvas(canvas, ctx, boardType) {
 
 	// Touch events
 	canvas.addEventListener('touchstart', (e) => {
+		// Stand down if a sticker is being interacted with
+		if (window._stickerActive) return;
 		e.preventDefault();
 		e.stopPropagation();
 		handleTouchStart(e, boardType);
