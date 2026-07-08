@@ -89,8 +89,26 @@
 				transition: border-color 0.2s;
 			" />
 
-			<!-- Table + Session dropdowns — stacked vertically so they never overflow -->
+			<!-- Session + Table dropdowns — stacked vertically so they never overflow -->
 			<div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
+				<div style="text-align: left;">
+					<label
+						style="display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Session
+						#</label>
+					<select id="sessionNumberSelect" style="
+						width: 100%; padding: 12px 14px; font-size: 15px;
+						border: 2px solid #e0e0e0; border-radius: 10px;
+						outline: none; background: white; cursor: pointer;
+						transition: border-color 0.2s; box-sizing: border-box;
+					">
+						<option value="">— Select Session —</option>
+						<option value="1">Session 1 (8:00AM – 9:15AM)</option>
+						<option value="2">Session 2 (9:25AM – 10:40AM)</option>
+						<option value="3">Session 3 (10:50AM – 12:05PM)</option>
+						<option value="4">Session 4 (12:15PM – 1:30PM)</option>
+						<option value="5">Session 5 (1:40PM – 2:55PM)</option>
+					</select>
+				</div>
 				<div style="text-align: left;">
 					<label
 						style="display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Table
@@ -113,23 +131,6 @@
 						<option value="9">Table 9</option>
 						<option value="10">Table 10</option>
 						<option value="11">Table 11</option>
-					</select>
-				</div>
-				<div style="text-align: left;">
-					<label
-						style="display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Session
-						#</label>
-					<select id="sessionNumberSelect" style="
-						width: 100%; padding: 12px 14px; font-size: 15px;
-						border: 2px solid #e0e0e0; border-radius: 10px;
-						outline: none; background: white; cursor: pointer;
-						transition: border-color 0.2s; box-sizing: border-box;
-					">
-						<option value="">— Select Session —</option>
-						<option value="1">Session 1</option>
-						<option value="2">Session 2</option>
-						<option value="3">Session 3</option>
-						<option value="4">Session 4</option>
 					</select>
 				</div>
 			</div>
