@@ -938,6 +938,31 @@ function toggleDrawing(boardType) {
 			isAnythingDrawn = false;
 		}, 500);
 	}
+
+	// For student board: show/hide sticker button and auto-send snapshot on stop
+	if (boardType === 'student') {
+		const stickerBtn = document.getElementById('stickerToggleBtn');
+		const sendBtn    = document.getElementById('sendWhiteboardBtn');
+
+		if (studentDrawingMode) {
+			// Drawing started — reveal sticker & send buttons
+			if (stickerBtn) stickerBtn.style.display = '';
+			if (sendBtn)    sendBtn.style.display    = '';
+		} else {
+			// Drawing stopped — hide sticker button, close tray
+			if (stickerBtn) stickerBtn.style.display = 'none';
+			if (typeof window.toggleStickerTray === 'function') {
+				const tray = document.getElementById('physicsStickerTray');
+				if (tray && !tray.classList.contains('sticker-tray-hidden')) {
+					window.toggleStickerTray();
+				}
+			}
+			// Auto-send snapshot to tutor (small delay so final strokes are rendered)
+			if (typeof window.sendWhiteboardToTutor === 'function') {
+				setTimeout(window.sendWhiteboardToTutor, 300);
+			}
+		}
+	}
 }
 
 function toggleEraser(boardType) {

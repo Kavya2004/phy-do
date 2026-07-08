@@ -90,6 +90,14 @@ function initializeChat() {
     window.chatInitialized = true;
     window.processUserMessage = processUserMessage;
     window.initializeChat = initializeChat;
+
+    // Allow external code (e.g. whiteboard) to inject a File into the upload queue
+    window.injectFileIntoChat = function (file) {
+        uploadedFiles.push(file);
+        addFileToPreview(file);
+        const fp = document.getElementById('filePreview');
+        if (fp) fp.style.display = 'flex';
+    };
     const sendButton = document.getElementById('sendButton');
     const chatInput = document.getElementById('chatInput');
 

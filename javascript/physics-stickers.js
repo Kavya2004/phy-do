@@ -396,7 +396,101 @@
     });
   }
 
-  // ── Init ─────────────────────────────────────────────────────────────────────
+  // ── Snapshot whiteboard + stickers → send to tutor ───────────────────────────
+  window.sendWhiteboardToTutor = function () {
+    const canvas  = document.getElementById('studentWhiteboard');
+    const overlay = document.getElementById('stickerOverlay');
+    const btn     = document.getElementById('sendWhiteboardBtn');
+    if (!canvas) return;
+
+    // Flash feedback
+    if (btn) { btn.textContent = '⏳ Sending…'; btn.disabled = true; }
+
+    // 1. Create an offscreen canvas the same size as the whiteboard canvas
+    const snap   = document.createElement('canvas');
+    snap.width   = canvas.width;
+    snap.height  = canvas.height;
+    const ctx    = snap.getContext('2d');
+
+    // 2. White background so the PNG isn't transparent
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, snap.width, snap.height);
+
+    // 3. Draw the whiteboard canvas content
+    ctx.drawImage(canvas, 0, 0);
+
+    // 4. Composite every placed sticker from the overlay
+    const promises = [];
+    if (overlay) {
+      overlay.querySelectorAll('.placed-sticker').forEach(el => {
+        const img = el.querySelector('img');
+        if (!img || !img.complete) return;
+
+        // Get sticker position relative to the overlay (which is same size as canvas)
+        const left = parseInt(el.style.left) || 0;
+        const top  = parseInt(el.style.top)  || 0;
+        const w    = el.offsetWidth  || parseInt(el.style.width)  || 80;
+        const h    = el.offsetHeight || parseInt(el.style.height) || 80;
+
+        // If img src is still loading, wait for it; otherwise draw now
+        if (img.naturalWidth === 0) {
+          promises.push(new Promise(resolve => {
+            img.onload = () => { ctx.drawImage(img, left, top, w, h); resolve(); };
+          }));
+        } else {
+          ctx.drawImage(img, left, top, w, h);
+        }
+      });
+    }
+
+    // 5. After all stickers are drawn, convert to File and inject
+    Promise.all(promises).then(() => {
+      snap.toBlob(blob => {
+        if (!blob) {
+          if (btn) { btn.textContent = '📸 Send to Tutor'; btn.disabled = false; }
+          return;
+        }
+
+        const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const file = new File([blob], `whiteboard-${ts}.png`, { type: 'image/png' });
+
+        // Inject the file into the chat upload queue
+        if (typeof window.injectFileIntoChat === 'function') {
+          window.injectFileIntoChat(file);
+        }
+
+        // Pre-fill the input with context so the tutor knows what to look at
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput && !chatInput.value.trim()) {
+          chatInput.value = 'Here is my whiteboard. Can you look at my diagram and help me understand if it\'s correct?';
+        }
+
+        // Restore button
+        if (btn) { btn.textContent = '📸 Send to Tutor'; btn.disabled = false; }
+
+        // Scroll chat into view and focus input
+        chatInput?.focus();
+
+        // Show a subtle toast
+        showSendToast();
+      }, 'image/png');
+    });
+  };
+
+  function showSendToast() {
+    const toast = document.createElement('div');
+    toast.textContent = '✅ Whiteboard added to chat — hit Send!';
+    toast.style.cssText = `
+      position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+      background:#881c1c; color:white; padding:10px 20px; border-radius:24px;
+      font-size:13px; font-weight:600; z-index:99999;
+      box-shadow:0 4px 16px rgba(0,0,0,0.25);
+      animation: fadeInUp 0.2s ease;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+
   function init() {
     buildStickerTray();
     wireCanvasDrop();
