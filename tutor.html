@@ -622,9 +622,9 @@
 						<!-- Canvas + overlay wrapper -->
 						<div id="whiteboardWrapper" style="position:relative; flex:1; min-height:0;">
 							<canvas id="studentWhiteboard" class="whiteboard-canvas"></canvas>
-							<!-- Overlay: placed stickers live here so they stay movable -->
+							<!-- Overlay: placed stickers live here — z-index above canvas so pointer events reach stickers -->
 							<div id="stickerOverlay" style="
-								position:absolute; inset:0; pointer-events:none; overflow:visible;
+								position:absolute; inset:0; pointer-events:none; overflow:visible; z-index:10;
 							"></div>
 							<!-- Sticker picker dropdown (floats over the board) -->
 							<div id="physicsStickerTray" class="sticker-tray sticker-tray-hidden">

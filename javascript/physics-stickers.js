@@ -232,83 +232,135 @@
     const { w, h } = parseSvgSize(svgString);
     const url = svgToObjectUrl(svgString);
 
+    // Wrapper — this is what gets dragged
     const el = document.createElement('div');
     el.className = 'placed-sticker';
-    // pointer-events:auto overrides the overlay's pointer-events:none
-    el.style.cssText = `
-      left:${cx - w / 2}px; top:${cy - h / 2}px;
-      width:${w}px; height:${h}px;
-      pointer-events:auto;
-    `;
+    el.style.cssText = [
+      `position:absolute`,
+      `left:${Math.round(cx - w / 2)}px`,
+      `top:${Math.round(cy - h / 2)}px`,
+      `width:${w}px`,
+      `height:${h}px`,
+      `pointer-events:auto`,
+      `z-index:11`,
+      `cursor:move`,
+      `box-sizing:border-box`,
+      `border:2px dashed transparent`,
+      `border-radius:4px`,
+    ].join(';');
 
+    // The SVG image inside
     const img = document.createElement('img');
-    img.src   = url;
-    img.style.cssText = 'width:100%;height:100%;display:block;pointer-events:none;';
+    img.src = url;
+    img.style.cssText = 'width:100%;height:100%;display:block;pointer-events:none;user-select:none;';
     img.onload = () => URL.revokeObjectURL(url);
 
-    // delete × button — always visible on hover via CSS, but also sized for touch
-    const del = document.createElement('div');
-    del.className   = 'sticker-delete';
-    del.textContent = '×';
-    del.style.cssText = 'pointer-events:auto;';
+    // Delete button — always rendered, shown via selected state
+    const del = document.createElement('button');
+    del.textContent = '✕';
+    del.title = 'Delete sticker';
+    del.style.cssText = [
+      `display:none`,
+      `position:absolute`,
+      `top:-14px`,
+      `right:-14px`,
+      `width:26px`,
+      `height:26px`,
+      `background:#dc3545`,
+      `color:white`,
+      `border:none`,
+      `border-radius:50%`,
+      `font-size:13px`,
+      `font-weight:bold`,
+      `line-height:26px`,
+      `text-align:center`,
+      `cursor:pointer`,
+      `pointer-events:auto`,
+      `z-index:20`,
+      `padding:0`,
+    ].join(';');
+
     del.addEventListener('pointerdown', e => {
       e.stopPropagation();
+      e.preventDefault();
       el.remove();
+      deselectAll();
     });
 
     el.appendChild(img);
     el.appendChild(del);
-
-    makeDraggable(el, overlay);
     overlay.appendChild(el);
+
+    // Select/deselect on click
+    el.addEventListener('pointerdown', e => {
+      e.stopPropagation(); // don't let canvas whiteboard capture this
+      selectSticker(el);
+      startDrag(e, el, overlay);
+    });
+
+    selectSticker(el); // auto-select when first placed
   }
 
-  // ── Drag-to-move an overlay sticker ──────────────────────────────────────────
-  function makeDraggable(el, container) {
-    let dragging = false, startX, startY, origLeft, origTop;
+  // ── Selection state ───────────────────────────────────────────────────────────
+  let _selected = null;
 
-    el.addEventListener('pointerdown', e => {
-      if (e.target.classList.contains('sticker-delete')) return;
-      dragging = true;
-      startX   = e.clientX;
-      startY   = e.clientY;
-      origLeft = parseInt(el.style.left) || 0;
-      origTop  = parseInt(el.style.top)  || 0;
-      el.style.zIndex = '100';
-      el.setPointerCapture(e.pointerId);
-      e.preventDefault();
-      e.stopPropagation();
-    });
+  function selectSticker(el) {
+    deselectAll();
+    _selected = el;
+    el.style.borderColor = '#881c1c';
+    el.style.background  = 'rgba(136,28,28,0.04)';
+    const del = el.querySelector('button');
+    if (del) del.style.display = 'block';
+  }
 
-    el.addEventListener('pointermove', e => {
-      if (!dragging) return;
-      const cw   = container.offsetWidth  || el.parentElement.offsetWidth;
-      const ch   = container.offsetHeight || el.parentElement.offsetHeight;
+  function deselectAll() {
+    if (_selected) {
+      _selected.style.borderColor = 'transparent';
+      _selected.style.background  = 'transparent';
+      const del = _selected.querySelector('button');
+      if (del) del.style.display = 'none';
+      _selected = null;
+    }
+  }
+
+  // ── Drag-to-move ──────────────────────────────────────────────────────────────
+  function startDrag(e, el, container) {
+    const startX   = e.clientX;
+    const startY   = e.clientY;
+    const origLeft = parseInt(el.style.left) || 0;
+    const origTop  = parseInt(el.style.top)  || 0;
+    let moved = false;
+
+    function onMove(ev) {
+      moved = true;
+      const cw   = container.offsetWidth;
+      const ch   = container.offsetHeight;
       const ew   = el.offsetWidth;
       const eh   = el.offsetHeight;
-      const newL = Math.max(0, Math.min(origLeft + (e.clientX - startX), cw - ew));
-      const newT = Math.max(0, Math.min(origTop  + (e.clientY - startY), ch - eh));
+      const newL = Math.max(0, Math.min(origLeft + ev.clientX - startX, cw - ew));
+      const newT = Math.max(0, Math.min(origTop  + ev.clientY - startY, ch - eh));
       el.style.left = newL + 'px';
       el.style.top  = newT + 'px';
-      e.preventDefault();
-    });
+    }
 
-    el.addEventListener('pointerup', e => {
-      dragging = false;
-      el.style.zIndex = '';
-      el.releasePointerCapture(e.pointerId);
-    });
+    function onUp() {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup',   onUp);
+    }
 
-    el.addEventListener('pointercancel', e => {
-      dragging = false;
-      el.style.zIndex = '';
-    });
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup',   onUp);
   }
 
   // ── Wire canvas drop (from tray drag) ────────────────────────────────────────
   function wireCanvasDrop() {
     const wrapper = document.getElementById('whiteboardWrapper');
     if (!wrapper) return;
+
+    // Deselect when clicking the board background (not a sticker)
+    wrapper.addEventListener('pointerdown', e => {
+      if (!e.target.closest('.placed-sticker')) deselectAll();
+    });
 
     wrapper.addEventListener('dragover', e => {
       e.preventDefault();
@@ -335,6 +387,7 @@
     btn.addEventListener('click', () => {
       const overlay = document.getElementById('stickerOverlay');
       if (overlay) overlay.innerHTML = '';
+      deselectAll();
     });
   }
 
