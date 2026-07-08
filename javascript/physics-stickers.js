@@ -234,27 +234,30 @@
 
     const el = document.createElement('div');
     el.className = 'placed-sticker';
-    el.style.left   = (cx - w / 2) + 'px';
-    el.style.top    = (cy - h / 2) + 'px';
-    el.style.width  = w + 'px';
-    el.style.height = h + 'px';
+    // pointer-events:auto overrides the overlay's pointer-events:none
+    el.style.cssText = `
+      left:${cx - w / 2}px; top:${cy - h / 2}px;
+      width:${w}px; height:${h}px;
+      pointer-events:auto;
+    `;
 
     const img = document.createElement('img');
     img.src   = url;
     img.style.cssText = 'width:100%;height:100%;display:block;pointer-events:none;';
     img.onload = () => URL.revokeObjectURL(url);
 
-    // delete × button
+    // delete × button — always visible on hover via CSS, but also sized for touch
     const del = document.createElement('div');
-    del.className = 'sticker-delete';
+    del.className   = 'sticker-delete';
     del.textContent = '×';
-    del.addEventListener('click', e => { e.stopPropagation(); el.remove(); });
+    del.style.cssText = 'pointer-events:auto;';
+    del.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      el.remove();
+    });
 
     el.appendChild(img);
     el.appendChild(del);
-
-    // enable pointer-events on overlay while stickers exist
-    overlay.style.pointerEvents = 'none'; // overlay itself is transparent; stickers handle their own events
 
     makeDraggable(el, overlay);
     overlay.appendChild(el);
@@ -264,47 +267,42 @@
   function makeDraggable(el, container) {
     let dragging = false, startX, startY, origLeft, origTop;
 
-    function onDown(e) {
-      // Don't start drag if clicking the delete button
+    el.addEventListener('pointerdown', e => {
       if (e.target.classList.contains('sticker-delete')) return;
       dragging = true;
-      const pt = e.touches ? e.touches[0] : e;
-      startX   = pt.clientX;
-      startY   = pt.clientY;
+      startX   = e.clientX;
+      startY   = e.clientY;
       origLeft = parseInt(el.style.left) || 0;
       origTop  = parseInt(el.style.top)  || 0;
       el.style.zIndex = '100';
+      el.setPointerCapture(e.pointerId);
       e.preventDefault();
       e.stopPropagation();
-    }
+    });
 
-    function onMove(e) {
+    el.addEventListener('pointermove', e => {
       if (!dragging) return;
-      const pt   = e.touches ? e.touches[0] : e;
-      const dx   = pt.clientX - startX;
-      const dy   = pt.clientY - startY;
-      const cw   = container.offsetWidth;
-      const ch   = container.offsetHeight;
+      const cw   = container.offsetWidth  || el.parentElement.offsetWidth;
+      const ch   = container.offsetHeight || el.parentElement.offsetHeight;
       const ew   = el.offsetWidth;
       const eh   = el.offsetHeight;
-      const newL = Math.max(0, Math.min(origLeft + dx, cw - ew));
-      const newT = Math.max(0, Math.min(origTop  + dy, ch - eh));
+      const newL = Math.max(0, Math.min(origLeft + (e.clientX - startX), cw - ew));
+      const newT = Math.max(0, Math.min(origTop  + (e.clientY - startY), ch - eh));
       el.style.left = newL + 'px';
       el.style.top  = newT + 'px';
       e.preventDefault();
-    }
+    });
 
-    function onUp() {
+    el.addEventListener('pointerup', e => {
       dragging = false;
       el.style.zIndex = '';
-    }
+      el.releasePointerCapture(e.pointerId);
+    });
 
-    el.addEventListener('mousedown',  onDown,  { passive: false });
-    el.addEventListener('touchstart', onDown,  { passive: false });
-    document.addEventListener('mousemove', onMove, { passive: false });
-    document.addEventListener('touchmove', onMove, { passive: false });
-    document.addEventListener('mouseup',  onUp);
-    document.addEventListener('touchend', onUp);
+    el.addEventListener('pointercancel', e => {
+      dragging = false;
+      el.style.zIndex = '';
+    });
   }
 
   // ── Wire canvas drop (from tray drag) ────────────────────────────────────────
