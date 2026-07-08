@@ -566,20 +566,14 @@
 			</div>
 			<div class="whiteboard-section" id="whiteboardSection">
 				<div class="whiteboard-tabs">
-					<!-- Teacher Board tab disabled
-						<button class="tab-button active" id="teacherTab" onclick="switchWhiteboard('teacher')">
-							🎓 Teacher Board
-						</button>
-						-->
-					<!-- Student Board tab disabled
-						<button class="tab-button" id="studentTab" onclick="switchWhiteboard('student')">✏️ Student Board</button>
-						-->
-					<button class="tab-button active" id="notesTab" onclick="switchWhiteboard('notes')">📝
+					<button class="tab-button" id="notesTab" onclick="switchWhiteboard('notes')">📝
 						Notes</button>
+					<button class="tab-button active" id="studentTab" onclick="switchWhiteboard('student')">✏️
+						Whiteboard</button>
 				</div>
 				<div class="whiteboard-container">
-					<!-- Teacher Whiteboard disabled
-						<div class="whiteboard-panel active" id="teacherPanel">
+					<!-- Teacher Whiteboard (kept disabled — teacher-only feature)
+						<div class="whiteboard-panel" id="teacherPanel">
 							<div class="whiteboard-header">
 								<h3>Teacher Whiteboard</h3>
 								<div class="whiteboard-controls">
@@ -588,7 +582,6 @@
 									<button id="eraserTeacherButton" onclick="toggleEraser('teacher')">Eraser</button>
 									<button id="expandTeacherButton">Expand</button>
 								</div>
-
 								<div class="math-buttons">
 									<button onclick="insertPlus('teacher')">+</button>
 									<button onclick="insertMinus('teacher')">−</button>
@@ -602,34 +595,33 @@
 							</div>
 							<canvas id="teacherWhiteboard" class="whiteboard-canvas"></canvas>
 						</div>
-						 -->
+						-->
 
-					<!-- Student Whiteboard disabled 
-						<div class="whiteboard-panel" id="studentPanel">
-							<div class="whiteboard-header">
-								<h3>Student Whiteboard</h3>
-								<div class="whiteboard-controls">
-									<button id="clearStudentButton">Clear</button>
-									<button id="drawStudentButton">Draw</button>
-									<button id="eraserStudentButton" onclick="toggleEraser('student')">Eraser</button>
-									<button id="expandStudentButton">Expand</button>
-								</div>
-
-								<div class="math-buttons">
-									<button onclick="insertPlus('student')">+</button>
-									<button onclick="insertMinus('student')">−</button>
-									<button onclick="insertMultiply('student')">×</button>
-									<button onclick="insertDivide('student')">÷</button>
-									<button onclick="insertEquals('student')">=</button>
-									<button onclick="insertFraction('student')">½</button>
-									<button onclick="insertSquareRoot('student')">√</button>
-									<button onclick="insertPi('student')">π</button>
-								</div>
+					<!-- Student Whiteboard -->
+					<div class="whiteboard-panel active" id="studentPanel">
+						<div class="whiteboard-header">
+							<h3>Student Whiteboard</h3>
+							<div class="whiteboard-controls">
+								<button id="clearStudentButton">Clear</button>
+								<button id="drawStudentButton">Draw</button>
+								<button id="eraserStudentButton" onclick="toggleEraser('student')">Eraser</button>
+								<button id="expandStudentButton">Expand</button>
 							</div>
-							<canvas id="studentWhiteboard" class="whiteboard-canvas"></canvas>
-						</div> -->
+							<div class="math-buttons">
+								<button onclick="insertPlus('student')">+</button>
+								<button onclick="insertMinus('student')">−</button>
+								<button onclick="insertMultiply('student')">×</button>
+								<button onclick="insertDivide('student')">÷</button>
+								<button onclick="insertEquals('student')">=</button>
+								<button onclick="insertFraction('student')">½</button>
+								<button onclick="insertSquareRoot('student')">√</button>
+								<button onclick="insertPi('student')">π</button>
+							</div>
+						</div>
+						<canvas id="studentWhiteboard" class="whiteboard-canvas"></canvas>
+					</div>
 
-					<div class="whiteboard-panel active" id="notesPanel">
+					<div class="whiteboard-panel" id="notesPanel">
 						<div class="whiteboard-header">
 							<h3>Student Notes</h3>
 							<div class="whiteboard-controls">
@@ -709,9 +701,7 @@
 	<script src="javascript/diagram-renderer.js"></script>
 	<script src="javascript/chat-history-manager.js"></script>
 	<script src="javascript/tutor-chat.js"></script>
-	<!-- tutor-whiteboard.js disabled
-		<script src="javascript/tutor-whiteboard.js"></script>
-		-->
+	<script src="javascript/tutor-whiteboard.js"></script>
 	<script src="javascript/student-notes.js"></script>
 	<script src="javascript/session-manager.js?v=3"></script>
 	<script src="javascript/quiz-system.js"></script>

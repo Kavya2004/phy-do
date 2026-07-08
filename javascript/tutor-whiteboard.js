@@ -1,4 +1,4 @@
-/* DISABLED - teacher/student whiteboards not in use
+/* tutor-whiteboard.js - student whiteboard */
 let teacherCanvas, teacherCtx, studentCanvas, studentCtx;
 
 
@@ -17,7 +17,7 @@ let currentPath = [];
 let isExpanded = false;
 let recogTimer = null;
 let isAnythingDrawn = false;
-let activeWhiteboard = 'teacher';
+let activeWhiteboard = 'student';
 let pendingSymbol = null;
 
 
@@ -590,6 +590,17 @@ function switchWhiteboard(boardType) {
 	} else {
 		if (notesPanel) notesPanel.classList.add('active');
 		if (notesTab) notesTab.classList.add('active');
+		// Trigger notes canvas resize via NotebookManager if available
+		setTimeout(() => {
+			if (window.notebookManager && window.notebookManager.canvas) {
+				const container = window.notebookManager.canvas.parentElement;
+				if (container) {
+					window.notebookManager.canvas.width = container.clientWidth;
+					window.notebookManager.canvas.height = container.clientHeight;
+					window.notebookManager.restoreCanvasState();
+				}
+			}
+		}, 100);
 	}
   
 	activeWhiteboard = boardType;
@@ -1772,4 +1783,3 @@ window.insertSquareRoot = insertSquareRoot;
 window.insertPi = insertPi;
 window.toggleDrawing = toggleDrawing;
 window.testStudentDrawButton = testStudentDrawButton;
-*/ // END DISABLED
