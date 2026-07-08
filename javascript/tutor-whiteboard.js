@@ -35,25 +35,19 @@ let studentDrawingData = null;
 
 
 let resizeTimeout = null;
+let _whiteboardInitialized = false;
 
-document.addEventListener('DOMContentLoaded', function () {
-
+function initOnce() {
+	if (_whiteboardInitialized) return;
+	_whiteboardInitialized = true;
 	initializeWhiteboards();
 	setupWhiteboardControls();
-});
+}
 
+document.addEventListener('DOMContentLoaded', initOnce);
 
-if (document.readyState === 'loading') {
-	document.addEventListener('DOMContentLoaded', function () {
-		initializeWhiteboards();
-		setupWhiteboardControls();
-	});
-} else {
-
-	setTimeout(() => {
-		initializeWhiteboards();
-		setupWhiteboardControls();
-	}, 100);
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+	setTimeout(initOnce, 100);
 }
 
 function setupWhiteboardControls() {
@@ -78,20 +72,11 @@ function setupWhiteboardControls() {
 	}
 
 	if (drawTeacherButton) {
-
 		drawTeacherButton.addEventListener('click', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-
 			toggleDrawing('teacher');
 		});
-		
-		// Also add onclick as backup
-		drawTeacherButton.onclick = function(e) {
-			e.preventDefault();
-
-			toggleDrawing('teacher');
-		};
 	} else {
 
 	}
