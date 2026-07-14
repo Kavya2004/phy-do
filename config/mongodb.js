@@ -79,10 +79,13 @@ const inClassChatConversationSchema = new mongoose.Schema({
   sessionTitle:  { type: String, required: true },
   tableNumber:   { type: Number, required: true },
   sessionNumber: { type: Number, required: true },
+  dateKey:       { type: String, required: true },  // 'YYYY-MM-DD' — one record per table+session+day
   email:         { type: String, required: true, index: true },  // student who initiated
   title:         { type: String, default: 'In-Class Conversation' },
   messages:      { type: [inClassChatMessageSchema], default: [] },
 }, { timestamps: true });
+
+inClassChatConversationSchema.index({ tableNumber: 1, sessionNumber: 1, dateKey: 1 }, { unique: true });
 
 export function getInClassChatModel() {
   return getInClassConn().models.InClassChatConversation ||

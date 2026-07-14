@@ -108,20 +108,32 @@ async function getChatModel() {
 }
 
 // GET /api/in-class/chat/by-session/:sessionId
-// Find the shared session chat record, or create it if it doesn't exist yet.
-// All students at the same table share this single record.
+// Find the shared session chat record by sessionId (legacy / same-day reuse).
 router.get('/chat/by-session/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
   if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
   try {
     const Convo = await getChatModel();
-    let doc = await Convo.findOne({ sessionId });
-    if (!doc) {
-      // First student to hit this endpoint — create the shared record
-      // We don't know sessionTitle/tableNumber yet so use placeholders;
-      // they get updated when the first POST /chat comes in.
-      return res.status(404).json({ error: 'not found' });
-    }
+    const doc = await Convo.findOne({ sessionId });
+    if (!doc) return res.status(404).json({ error: 'not found' });
+    res.json(doc);
+  } catch (err) {
+    res.status(503).json({ error: err.message });
+  }
+});
+
+// GET /api/in-class/chat/by-date/:tableNumber/:sessionNumber/:dateKey
+// Find today's shared chat record for a given table+session (dateKey = YYYY-MM-DD).
+router.get('/chat/by-date/:tableNumber/:sessionNumber/:dateKey', async (req, res) => {
+  const { tableNumber, sessionNumber, dateKey } = req.params;
+  try {
+    const Convo = await getChatModel();
+    const doc = await Convo.findOne({
+      tableNumber: Number(tableNumber),
+      sessionNumber: Number(sessionNumber),
+      dateKey,
+    });
+    if (!doc) return res.status(404).json({ error: 'not found' });
     res.json(doc);
   } catch (err) {
     res.status(503).json({ error: err.message });
@@ -129,28 +141,32 @@ router.get('/chat/by-session/:sessionId', async (req, res) => {
 });
 
 // POST /api/in-class/chat
-// Create the shared session chat record (one per session, shared by all students).
-// Body: { sessionId, sessionTitle, tableNumber, sessionNumber, email, title? }
-// Idempotent — if a record for this sessionId already exists, returns it.
+// Create the shared session chat record (one per table+session+date).
+// Body: { sessionId, sessionTitle, tableNumber, sessionNumber, email, dateKey, title? }
+// Idempotent — if a record for this table+session+date already exists, returns it.
 router.post('/chat', async (req, res) => {
-  const { sessionId, sessionTitle, tableNumber, sessionNumber, email, title } = req.body;
+  const { sessionId, sessionTitle, tableNumber, sessionNumber, email, dateKey, title } = req.body;
   if (!sessionId || !tableNumber || !sessionNumber) {
     return res.status(400).json({ error: 'sessionId, tableNumber, sessionNumber required' });
   }
+  const key = dateKey || new Date().toISOString().split('T')[0];
   try {
     const Convo = await getChatModel();
-    // Return existing shared record if already created by another student
-    const existing = await Convo.findOne({ sessionId });
-    if (existing) {
-      return res.json(existing);
-    }
+    // Return existing record for this table+session+date if already created
+    const existing = await Convo.findOne({
+      tableNumber: Number(tableNumber),
+      sessionNumber: Number(sessionNumber),
+      dateKey: key,
+    });
+    if (existing) return res.json(existing);
     const doc = await Convo.create({
       sessionId,
       sessionTitle: sessionTitle || `Table ${tableNumber} Session ${sessionNumber}`,
       tableNumber: Number(tableNumber),
       sessionNumber: Number(sessionNumber),
-      email: (email || '').trim().toLowerCase(), // first student who triggered creation
-      title: title || sessionTitle || `Table ${tableNumber} Session ${sessionNumber}`,
+      dateKey: key,
+      email: (email || '').trim().toLowerCase(),
+      title: title || key,  // title = the date string e.g. "2025-07-15"
       messages: [],
     });
     res.json(doc);

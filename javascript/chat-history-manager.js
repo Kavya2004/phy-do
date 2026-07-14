@@ -382,29 +382,61 @@
     _inClassTableNumber   = Number(window._inClassTableNumber  || 0);
     _inClassSessionNumber = Number(window._inClassSessionNumber || 0);
 
-    console.log('[in-class chat] init for', email, _inClassSessionTitle);
+    // Date key: YYYY-MM-DD in local time — one channel per class day
+    const today = new Date();
+    const dateKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    const dateTitle = today.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+
+    console.log('[in-class chat] init for', email, _inClassSessionTitle, dateKey);
 
     try {
-      // First try to find the existing shared record for this session
-      const findRes = await fetch(`${BACKEND}/api/in-class/chat/by-session/${encodeURIComponent(_inClassSessionId)}`);
+      // Look up today's record for this table+session (date-keyed channel)
+      const findRes = await fetch(
+        `${BACKEND}/api/in-class/chat/by-date/${_inClassTableNumber}/${_inClassSessionNumber}/${dateKey}`
+      );
 
       if (findRes.ok) {
-        // Shared record already exists — reuse it
+        // Today's record already exists — reuse it and replay messages in UI
         const existing = await findRes.json();
         _inClassConvoId = existing._id;
-        console.log('[in-class chat] joined existing shared record:', _inClassConvoId);
+        console.log('[in-class chat] joined existing daily record:', _inClassConvoId);
+
+        // Fetch full record with messages and replay them
+        try {
+          const fullRes = await fetch(`${BACKEND}/api/in-class/chat/${existing._id}`);
+          if (fullRes.ok) {
+            const full = await fullRes.json();
+            const msgs = full.messages || [];
+            if (msgs.length > 0) {
+              const chatMessages = document.getElementById('chatMessages');
+              if (chatMessages) chatMessages.innerHTML = '';
+              if (window._resetChatContext) window._resetChatContext();
+              msgs.forEach(m => {
+                if (window._addMessageSilent) {
+                  window._addMessageSilent(m.content, m.role === 'user' ? 'user' : 'bot');
+                }
+              });
+              if (window._rebuildContext) window._rebuildContext(msgs);
+              _inClassTitleSet = true;
+            }
+          }
+        } catch (e) {
+          console.warn('[in-class chat] failed to replay history:', e.message);
+        }
       } else {
-        // First student — create the shared record
+        // First student today — create the daily record with date as title
         const doc = await inClassApiPost('/api/in-class/chat', {
           sessionId:     _inClassSessionId,
           sessionTitle:  _inClassSessionTitle,
           tableNumber:   _inClassTableNumber,
           sessionNumber: _inClassSessionNumber,
+          dateKey,
           email:         email.trim().toLowerCase(),
-          title:         _inClassSessionTitle,
+          title:         dateTitle,
         });
         _inClassConvoId = doc._id;
-        console.log('[in-class chat] created shared session record:', _inClassConvoId);
+        _inClassTitleSet = true;  // title is the date, no need for AI-generated title
+        console.log('[in-class chat] created daily record:', _inClassConvoId, dateKey);
       }
 
       _inClassReady = true;
@@ -456,11 +488,7 @@
       }
     },
     autoTitle(userMsg, botMsg) {
-      if (_inClassMode) {
-        autoTitleInClass(userMsg, botMsg);
-      } else {
-        autoTitle(userMsg, botMsg);
-      }
+      if (!_inClassMode) autoTitle(userMsg, botMsg);
     },
     loadConversation,
     startNewConversation,
