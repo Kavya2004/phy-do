@@ -39,9 +39,11 @@ class ShapeTools {
 
         this.isDrawing = true;
         const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width  / rect.width;
+        const scaleY = canvas.height / rect.height;
         this.startPoint = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top)  * scaleY
         };
 
         if (this.currentTool === 'freehand') {
@@ -61,9 +63,11 @@ class ShapeTools {
         if (!canvas || !ctx) return;
 
         const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width  / rect.width;
+        const scaleY = canvas.height / rect.height;
         const currentPoint = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top)  * scaleY
         };
 
         if (this.currentTool === 'freehand') {

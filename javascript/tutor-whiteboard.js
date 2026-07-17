@@ -15,8 +15,6 @@ let teacherEraserMode = false;
 let studentEraserMode = false;
 let currentPath = [];
 let isExpanded = false;
-let recogTimer = null;
-let isAnythingDrawn = false;
 let activeWhiteboard = 'student';
 let pendingSymbol = null;
 
@@ -117,260 +115,6 @@ function setupWhiteboardControls() {
 
 	setupResizeHandle();
 }
-
-function getOcrServerUrl() {
-	return ''; // ✅ Use same origin (your Vercel app)
-}
-
-async function runOcrAndFillChat(boardType) {
-	try {
-
-
-		// Get the correct canvas using the global variables from your whiteboard code
-		const canvas = boardType === 'teacher' ? teacherCanvas : studentCanvas;
-		if (!canvas) {
-	
-			return;
-		}
-
-
-
-		// Check canvas dimensions first
-		if (canvas.width === 0 || canvas.height === 0) {
-
-			return;
-		}
-
-		// Check if canvas has any content
-		const ctx = canvas.getContext('2d');
-		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-		let hasContent = false;
-		for (let i = 0; i < imageData.data.length; i += 4) {
-			const r = imageData.data[i];
-			const g = imageData.data[i + 1];
-			const b = imageData.data[i + 2];
-			const a = imageData.data[i + 3];
-
-			// Check for any non-white, non-transparent pixels
-			if (a > 0 && (r < 250 || g < 250 || b < 250)) {
-				hasContent = true;
-				break;
-			}
-		}
-
-		if (!hasContent) {
-	
-			return;
-		}
-
-		// Convert canvas to base64 image
-		const dataUrl = canvas.toDataURL('image/png', 0.8);
-
-
-	
-		const serverUrl = getOcrServerUrl();
-
-
-
-		const response = await fetch('/api/ocr', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				image: dataUrl
-			})
-		});
-
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`OCR request failed: ${response.status} - ${errorText}`);
-		}
-
-		const result = await response.json();
-
-
-
-		let ocrText = '';
-		if (result.text) {
-			ocrText = result.text;
-		} else if (result.latex_styled) {
-			ocrText = result.latex_styled;
-		} else if (result.data && Array.isArray(result.data)) {
-			ocrText = result.data.map((item) => item.value || '').join(' ');
-		} else if (result.error) {
-
-			showOcrError(`OCR Error: ${result.error}`);
-			return;
-		} else {
-
-			ocrText = JSON.stringify(result); // Fallback to see what we got
-		}
-
-		if (ocrText.trim()) {
-
-			await sendOcrToChat(ocrText, boardType);
-		} else {
-
-		}
-	} catch (error) {
-
-		showOcrError(`Failed to process whiteboard: ${error.message}`);
-	}
-}
-
-// Send OCR result to chat system
-async function sendOcrToChat(ocrText, boardType) {
-	const message = `I wrote on the ${boardType} whiteboard: "${ocrText}"`;
-
-
-
-	const chatInput =
-		document.querySelector('#chatInput') || // This matches your HTML
-		document.querySelector('#messageInput') ||
-		document.querySelector('[data-testid="chat-input"]') ||
-		document.querySelector('textarea[placeholder*="message"]') ||
-		document.querySelector('input[type="text"]') ||
-		document.querySelector('textarea');
-	if (chatInput) {
-		// Add the OCR text to the chat input
-		const currentValue = chatInput.value || '';
-		const newValue = currentValue ? `${currentValue}\n\n${message}` : message;
-		chatInput.value = newValue;
-
-		// Trigger input events to notify React/Vue/etc if needed
-		chatInput.dispatchEvent(new Event('input', { bubbles: true }));
-		chatInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-		const sendButton =
-			document.querySelector('#sendButton') ||
-			document.querySelector('[data-testid="send-button"]') ||
-			document.querySelector('button[type="submit"]') ||
-			document.querySelector('.send-button');
-		if (sendButton && !sendButton.disabled) {
-
-			setTimeout(() => sendButton.click(), 100);
-		} else {
-
-			// Show a notification that the text was added
-			showOcrSuccess(`Text "${ocrText}" added to chat input`);
-		}
-	} else {
-
-
-		// Try to call global functions that might exist in your chat system
-		if (typeof window.addOcrMessageToChat === 'function') {
-			window.addOcrMessageToChat(ocrText, boardType);
-		} else if (typeof window.addMessageToChat === 'function') {
-			window.addMessageToChat(message);
-		} else if (typeof window.sendMessage === 'function') {
-			window.sendMessage(message);
-		} else {
-			// Show the OCR result in a notification
-			showOcrSuccess(`Recognized text: "${ocrText}"`);
-		}
-	}
-}
-// Global function for whiteboard OCR integration
-window.addOcrMessageToChat = function (ocrText, boardType) {
-	const message = `I wrote on the ${boardType} whiteboard: "${ocrText}"`;
-
-	// Add to chat input
-	const chatInput = document.getElementById('chatInput');
-	if (chatInput) {
-		const currentValue = chatInput.value || '';
-		const newValue = currentValue ? `${currentValue}\n\n${message}` : message;
-		chatInput.value = newValue;
-
-		// Trigger events
-		chatInput.dispatchEvent(new Event('input', { bubbles: true }));
-		chatInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-		// Auto-send if possible
-		setTimeout(() => {
-			if (!isProcessing) {
-				handleSendMessage();
-			}
-		}, 100);
-	}
-};
-// Show success notification
-function showOcrSuccess(message) {
-	const notification = document.createElement('div');
-	notification.style.cssText = `
-		position: fixed;
-		top: 20px;
-		right: 20px;
-		background: #28a745;
-		color: white;
-		padding: 12px 16px;
-		border-radius: 8px;
-		z-index: 10000;
-		font-size: 14px;
-		max-width: 300px;
-		box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-	`;
-	notification.textContent = message;
-
-	document.body.appendChild(notification);
-
-	// Remove after 4 seconds
-	setTimeout(() => {
-		if (notification.parentNode) {
-			notification.parentNode.removeChild(notification);
-		}
-	}, 4000);
-}
-
-// Show error notification
-function showOcrError(message) {
-	const errorDiv = document.createElement('div');
-	errorDiv.style.cssText = `
-		position: fixed;
-		top: 20px;
-		right: 20px;
-		background: #dc3545;
-		color: white;
-		padding: 12px 16px;
-		border-radius: 8px;
-		z-index: 10000;
-		font-size: 14px;
-		max-width: 300px;
-		box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-	`;
-	errorDiv.textContent = message;
-
-	document.body.appendChild(errorDiv);
-
-	// Remove after 5 seconds
-	setTimeout(() => {
-		if (errorDiv.parentNode) {
-			errorDiv.parentNode.removeChild(errorDiv);
-		}
-	}, 5000);
-}
-
-// Debug function to help troubleshoot
-function debugWhiteboardOcr() {
-
-
-	// Test OCR on both canvases
-	if (teacherCanvas) {
-
-		runOcrAndFillChat('teacher');
-	}
-
-	if (studentCanvas) {
-
-		runOcrAndFillChat('student');
-	}
-}
-
-// Make debug function available globally
-window.debugWhiteboardOcr = debugWhiteboardOcr;
-
-// Also export the OCR functions for external use
-window.runOcrAndFillChat = runOcrAndFillChat;
 
 // Debug function for drawing issues
 function debugDrawing(boardType = 'student') {
@@ -718,8 +462,6 @@ function handleTouchStart(e, boardType) {
 	e.preventDefault();
 	e.stopPropagation();
 	const touch = e.touches[0];
-	const canvas = boardType === 'teacher' ? teacherCanvas : studentCanvas;
-	const rect = canvas.getBoundingClientRect();
 	
 	// Create proper touch event with canvas-relative coordinates
 	const touchEvent = {
@@ -907,16 +649,6 @@ function toggleDrawing(boardType) {
 
 	updateDrawButtons();
 
-	// Only run OCR when stopping drawing mode
-	const currentMode = boardType === 'teacher' ? teacherDrawingMode : studentDrawingMode;
-	if (!currentMode && isAnythingDrawn) {
-		clearTimeout(recogTimer);
-		recogTimer = setTimeout(() => {
-			runOcrAndFillChat(boardType);
-			isAnythingDrawn = false;
-		}, 500);
-	}
-
 	// For student board: show/hide sticker button and auto-send snapshot on stop
 	if (boardType === 'student') {
 		const stickerBtn = document.getElementById('stickerToggleBtn');
@@ -1027,6 +759,18 @@ function updateDrawButtons() {
 	}
 }
 
+// Returns canvas-space coordinates from a mouse/touch event, accounting for
+// any CSS scaling between the canvas element's display size and its pixel dimensions.
+function getCanvasPos(canvas, e) {
+	const rect = canvas.getBoundingClientRect();
+	const scaleX = canvas.width  / rect.width;
+	const scaleY = canvas.height / rect.height;
+	return {
+		x: (e.clientX - rect.left) * scaleX,
+		y: (e.clientY - rect.top)  * scaleY,
+	};
+}
+
 function startDrawing(e, boardType) {
 
 	const canvas = boardType === 'teacher' ? teacherCanvas : studentCanvas;
@@ -1037,9 +781,7 @@ function startDrawing(e, boardType) {
 		return;
 	}
 	
-	const rect = canvas.getBoundingClientRect();
-	const x = e.clientX - rect.left;
-	const y = e.clientY - rect.top;
+	const { x, y } = getCanvasPos(canvas, e);
 
 
 	// If there's a pending symbol, place it at click location
@@ -1050,7 +792,6 @@ function startDrawing(e, boardType) {
 		ctx.fillText(pendingSymbol, x, y);
 		pendingSymbol = null;
 		canvas.style.cursor = 'crosshair';
-		isAnythingDrawn = true;
 		return;
 	}
 
@@ -1062,8 +803,6 @@ function startDrawing(e, boardType) {
 	}
 
 	isDrawing = true;
-	isAnythingDrawn = true;
-	clearTimeout(recogTimer);
 
 	currentPath = [{ x, y }];
 	ctx.beginPath();
@@ -1097,9 +836,7 @@ function draw(e, boardType) {
 		return;
 	}
 
-	const rect = canvas.getBoundingClientRect();
-	const x = e.clientX - rect.left;
-	const y = e.clientY - rect.top;
+	const { x, y } = getCanvasPos(canvas, e);
 
 	currentPath.push({ x, y });
 	ctx.lineTo(x, y);
@@ -1643,10 +1380,7 @@ function setupImageInteraction(boardType) {
 	if (!canvas || canvas._imgInteractionSetup) return;
 	canvas._imgInteractionSetup = true;
 
-	const getPos = (e) => {
-		const rect = canvas.getBoundingClientRect();
-		return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-	};
+	const getPos = (e) => getCanvasPos(canvas, e);
 
 	const hitImage = (pos) => {
 		const imgs = placedImages[boardType];
