@@ -18,6 +18,10 @@ let isExpanded = false;
 let activeWhiteboard = 'student';
 let pendingSymbol = null;
 
+// When true, resizeCanvas is a no-op — used to block spurious resizes that
+// fire because toggling the math-buttons toolbar changes the panel layout.
+let _suppressResize = false;
+
 
 let teacherSymbols = [];
 let studentSymbols = [];
@@ -491,6 +495,7 @@ function resizeCanvases() {
 }
 
 function resizeCanvas(canvas, boardType) {
+	if (_suppressResize) return;
 	if (!canvas) {
 		console.warn(`Canvas not found for ${boardType}`);
 		return;
@@ -502,17 +507,13 @@ function resizeCanvas(canvas, boardType) {
 		return;
 	}
 
-	// Measure the canvas element's own container directly so that toggling
-	// the math-buttons toolbar (which changes headerHeight) never causes a
-	// spurious resize and content shift.
-	const canvasContainer = canvas.parentElement || panel.querySelector('.whiteboard-container') || panel;
-	const containerRect = canvasContainer.getBoundingClientRect();
+	// Read the size the CSS has already laid out for the canvas element itself.
+	// This avoids measuring the container and subtracting margins/headers, which
+	// produced different values whenever the math-buttons toolbar was shown/hidden.
+	const newWidth  = Math.max(400, canvas.offsetWidth  || canvas.clientWidth);
+	const newHeight = Math.max(300, canvas.offsetHeight || canvas.clientHeight);
 
-	const newWidth  = Math.max(400, Math.floor(containerRect.width));
-	const newHeight = Math.max(300, Math.floor(containerRect.height));
-
-	// Skip resize if dimensions haven't actually changed (avoids content loss
-	// caused by layout reflows from toolbar visibility changes).
+	// No-op if nothing changed — prevents spurious redraws from layout reflows.
 	if (canvas.width === newWidth && canvas.height === newHeight) return;
 
 	// Save existing content at the OLD size
@@ -636,7 +637,12 @@ function toggleDrawing(boardType) {
 		}
 	}
 
+	// Suppress any resize triggered by the math-buttons toolbar appearing/disappearing.
+	// Keep the flag set through the next animation frame so the async window resize
+	// event (fired by the layout reflow) is also blocked.
+	_suppressResize = true;
 	updateDrawButtons();
+	requestAnimationFrame(() => { _suppressResize = false; });
 
 	// For student board: show/hide sticker button and auto-send snapshot on stop
 	if (boardType === 'student') {
@@ -702,7 +708,9 @@ function toggleEraser(boardType) {
 		}
 	}
 
+	_suppressResize = true;
 	updateDrawButtons();
+	requestAnimationFrame(() => { _suppressResize = false; });
 
 }
 
