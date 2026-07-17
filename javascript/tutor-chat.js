@@ -1296,8 +1296,25 @@ async function processUserMessage(message) {
 
 		}
 
+		// Reinforce the adversarial rules right before every call so they can
+		// never be buried by history or course-material context messages.
+		context.push({
+			role: 'system',
+			content: `REMINDER — ADVERSARIAL LEARNING MODE IS ACTIVE. You MUST follow ALL rules without exception:
+• ONE challenge per response only. Do NOT give a lecture or explain the full concept.
+• Do NOT give the answer. End with exactly ONE direct question the student must answer.
+• No unsolicited explanations. If the student hasn't tried yet, ask them to try first.
+• Open with a challenge phrase ("That's a reasonable instinct — but let me push back on it.", "OK, but here's what I'm not sure about...", etc.)
+• BANNED: Long explanations, numbered lists of concepts, full definitions of laws.`
+		});
+
 		// Get AI response with files (only if files processed successfully)
 		let botResponse = await getGeminiResponse(context, processedFiles.length > 0 ? processedFiles : []);
+
+		// Remove the reinforcement message from context after use (it's ephemeral)
+		if (context[context.length - 1]?.content?.startsWith('REMINDER — ADVERSARIAL')) {
+			context.pop();
+		}
 
 		// Add bot response to context
 		context.push({ role: 'assistant', content: botResponse });
@@ -1368,8 +1385,9 @@ async function processUserMessage(message) {
 		if (window.sessionManager && window.sessionManager.sessionId) {
 			// Render locally with citations right away (don't wait for WebSocket echo)
 			addMessage(botResponse, 'bot', [], extractedCitation);
-			// Flag so the WebSocket echo of this bot message is suppressed
-			window._localBotRendered = true;
+			// Increment counter so the WebSocket echo of this bot message is suppressed.
+			// The server broadcasts to all clients including the sender — we skip that echo.
+			window._localBotPending = (window._localBotPending || 0) + 1;
 			// Broadcast to other session participants
 			window.sessionManager.broadcastMessage(botResponse, 'bot');
 			// Also save to in-class DB and auto-title from this client

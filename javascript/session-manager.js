@@ -864,12 +864,11 @@ class SessionManager {
   handleSessionMessage(data) {
     switch (data.type) {
       case "message":
-        // If this is a bot message echoed back to the originating client,
-        // skip addSharedMessage — tutor-chat.js already rendered it locally
-        // with full citation pills via addMessage().
-        if (data.sender === 'bot' && window._localBotRendered) {
-          window._localBotRendered = false;
-          // Still need context sync and history save below — just skip the UI render.
+        // If this is the WebSocket echo of a bot message we already rendered
+        // locally with citation pills, suppress the duplicate.
+        if (data.sender === 'bot' && window._localBotPending > 0) {
+          window._localBotPending--;
+          // Still run context sync and history save below — just skip the UI render.
         } else {
           this.addSharedMessage(
             data.message,
