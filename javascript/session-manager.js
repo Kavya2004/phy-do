@@ -864,13 +864,21 @@ class SessionManager {
   handleSessionMessage(data) {
     switch (data.type) {
       case "message":
-        this.addSharedMessage(
-          data.message,
-          data.sender,
-          data.timestamp,
-          data.userName,
-          data.files,
-        );
+        // If this is a bot message echoed back to the originating client,
+        // skip addSharedMessage — tutor-chat.js already rendered it locally
+        // with full citation pills via addMessage().
+        if (data.sender === 'bot' && window._localBotRendered) {
+          window._localBotRendered = false;
+          // Still need context sync and history save below — just skip the UI render.
+        } else {
+          this.addSharedMessage(
+            data.message,
+            data.sender,
+            data.timestamp,
+            data.userName,
+            data.files,
+          );
+        }
         // Keep the AI context in sync on all clients so every student's
         // next message has full context of the shared conversation.
         if (window._inClassMode && window.context !== undefined) {

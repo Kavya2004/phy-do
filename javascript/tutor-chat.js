@@ -1366,7 +1366,11 @@ async function processUserMessage(message) {
 		
 		// Handle bot response display/broadcasting
 		if (window.sessionManager && window.sessionManager.sessionId) {
-			// Broadcast to all session participants (they see it via addSharedMessage)
+			// Render locally with citations right away (don't wait for WebSocket echo)
+			addMessage(botResponse, 'bot', [], extractedCitation);
+			// Flag so the WebSocket echo of this bot message is suppressed
+			window._localBotRendered = true;
+			// Broadcast to other session participants
 			window.sessionManager.broadcastMessage(botResponse, 'bot');
 			// Also save to in-class DB and auto-title from this client
 			if (window.chatHistoryManager) {
