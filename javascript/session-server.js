@@ -412,15 +412,19 @@ wss.on("connection", (ws, req) => {
         case "join":
           userName = message.userName;
           isHost = message.isHost;
+          // Update avatar/color from the WS join message (more up-to-date than HTTP join)
           if (session.participants.has(userName)) {
             const participant = session.participants.get(userName);
             participant.avatar = message.avatar || participant.avatar;
             participant.color = message.color || participant.color;
             participant.lastSeen = new Date();
+          } else {
+            // Fallback: add participant if they somehow weren't added via HTTP
+            session.addParticipant(userName, message.avatar || '👤', message.color || '#6c757d');
           }
           sessionConnections.get(sessionId).push({ ws, userName });
-        
-          // Send session info only to the new joiner
+
+          // Send session info + full participant list to the new joiner
           ws.send(
             JSON.stringify({
               type: "session_info",
@@ -440,28 +444,30 @@ wss.on("connection", (ws, req) => {
             );
           }
 
-          // Notify existing participants that someone joined (for the system chat message)
+          // Notify existing participants that someone joined (system chat message)
           broadcastToSession(
             sessionId,
             {
               type: "participant_joined",
               userName: userName,
+              avatar: message.avatar || '👤',
+              color: message.color || '#6c757d',
               timestamp: new Date().toISOString(),
             },
-            ws, // exclude the new joiner themselves
+            ws, // exclude the new joiner
           );
-        
-          // Broadcast full participants list to ALL clients (including existing ones)
-          // so their participant count updates immediately
+
+          // Broadcast the full updated participant list to ALL existing clients
+          // so their count and names update immediately
           broadcastToSession(
             sessionId,
             {
               type: "participants_update",
               participants: session.getParticipantsList(),
             },
-            ws, // new joiner already got the list via session_info above
+            ws, // new joiner already has the list via session_info
           );
-        
+
           console.log(`${userName} connected to session ${sessionId}`);
           break;
 
