@@ -1416,8 +1416,8 @@ async function processUserMessage(message) {
 			// WebSocket echo arrives. Keyed by a hash of the message content.
 			window._pendingCitations = window._pendingCitations || [];
 			window._pendingCitations.push(extractedCitation);
-			// Broadcast — server echoes back to everyone including sender
-			window.sessionManager.broadcastMessage(botResponse, 'bot');
+			// Broadcast — citations travel in the payload so all participants see them
+			window.sessionManager.broadcastMessage(botResponse, 'bot', [], extractedCitation);
 			// Also save to in-class DB and auto-title from this client
 			if (window.chatHistoryManager) {
 				window.chatHistoryManager.autoTitle(message, botResponse);

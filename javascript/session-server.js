@@ -471,6 +471,7 @@ wss.on("connection", (ws, req) => {
               userName: userName,
               timestamp: messageObj.timestamp,
               files: message.files || [],
+              citations: message.citations || [],
             });
 
             console.log(

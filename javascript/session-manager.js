@@ -870,6 +870,7 @@ class SessionManager {
           data.timestamp,
           data.userName,
           data.files,
+          data.citations || [],
         );
         // Keep the AI context in sync on all clients so every student's
         // next message has full context of the shared conversation.
@@ -972,7 +973,7 @@ class SessionManager {
     }
   }
 
-  shareMessage(message, sender = "user", files = []) {
+  shareMessage(message, sender = "user", files = [], citations = []) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(
         JSON.stringify({
@@ -982,12 +983,13 @@ class SessionManager {
           userName: this.userName,
           timestamp: new Date().toISOString(),
           files: files,
+          citations: citations,
         }),
       );
     }
   }
 
-  addSharedMessage(message, sender, timestamp, userName, files = []) {
+  addSharedMessage(message, sender, timestamp, userName, files = [], citations = []) {
     const chatMessages = document.getElementById("chatMessages");
     const messageDiv = document.createElement("div");
     messageDiv.className = `message ${sender}-message shared-message slide-in`;
@@ -1037,12 +1039,17 @@ class SessionManager {
       ${filesHtml}
     `;
 
-    // Attach citation pills for bot messages — consume the next pending citation
-    // batch that was stashed by tutor-chat.js before broadcasting.
-    if (sender === 'bot' && window._pendingCitations && window._pendingCitations.length > 0) {
-      const citations = window._pendingCitations.shift();
-      if (citations && citations.length > 0 && typeof window._buildCitationHTML === 'function') {
-        const citationHTML = window._buildCitationHTML(citations);
+    // Attach citation pills for bot messages.
+    // Other participants get citations from the WebSocket payload.
+    // The sender gets them from _pendingCitations (stashed before broadcast).
+    if (sender === 'bot' && typeof window._buildCitationHTML === 'function') {
+      let resolvedCitations = citations && citations.length > 0
+        ? citations
+        : (window._pendingCitations && window._pendingCitations.length > 0
+            ? window._pendingCitations.shift()
+            : null);
+      if (resolvedCitations && resolvedCitations.length > 0) {
+        const citationHTML = window._buildCitationHTML(resolvedCitations);
         if (citationHTML) {
           const pill = document.createElement('div');
           pill.className = 'citation-wrap';
@@ -1760,9 +1767,9 @@ class SessionManager {
     });
   }
 
-  broadcastMessage(message, sender, files = []) {
+  broadcastMessage(message, sender, files = [], citations = []) {
     if (this.sessionId) {
-      this.shareMessage(message, sender, files);
+      this.shareMessage(message, sender, files, citations);
     }
   }
 
