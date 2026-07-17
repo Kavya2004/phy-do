@@ -166,7 +166,7 @@ class TutorSession {
     this.lastActivity = new Date();
   }
 
-  addMessage(message, sender, userName, files = []) {
+  addMessage(message, sender, userName, files = [], citations = []) {
     const messageObj = {
       id: uuidv4(),
       message,
@@ -174,6 +174,7 @@ class TutorSession {
       userName,
       timestamp: new Date().toISOString(),
       files: files || [],
+      citations: citations || [],
     };
     this.messages.push(messageObj);
     this.lastActivity = new Date();
@@ -429,6 +430,16 @@ wss.on("connection", (ws, req) => {
             }),
           );
 
+          // Send full chat history to the new joiner so they see previous messages
+          if (session.messages.length > 0) {
+            ws.send(
+              JSON.stringify({
+                type: "session_history",
+                messages: session.messages,
+              }),
+            );
+          }
+
           // Notify existing participants that someone joined (for the system chat message)
           broadcastToSession(
             sessionId,
@@ -461,6 +472,7 @@ wss.on("connection", (ws, req) => {
               message.sender,
               userName,
               message.files,
+              message.citations || [],
             );
 
             // Broadcast to all participants including sender so everyone sees the message.

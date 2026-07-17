@@ -970,6 +970,32 @@ class SessionManager {
         this.updateSessionUI();
         this.updateParticipants(data.participants);
         break;
+      case "session_history":
+        // Replay all previous messages for a newly joined participant
+        if (data.messages && data.messages.length > 0) {
+          const chatMessages = document.getElementById("chatMessages");
+          // Clear any welcome message that was shown before history loaded
+          if (chatMessages) chatMessages.innerHTML = '';
+          data.messages.forEach(msg => {
+            this.addSharedMessage(
+              msg.message,
+              msg.sender,
+              msg.timestamp,
+              msg.userName,
+              msg.files || [],
+              msg.citations || [],
+            );
+          });
+          // Also rebuild AI context from history so the new participant's
+          // next message has full context of what was already discussed.
+          if (window._rebuildContext) {
+            window._rebuildContext(data.messages.map(m => ({
+              role: m.sender === 'bot' ? 'bot' : 'user',
+              content: m.sender === 'bot' ? m.message : `${m.userName}: ${m.message}`,
+            })));
+          }
+        }
+        break;
     }
   }
 
