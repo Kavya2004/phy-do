@@ -864,20 +864,13 @@ class SessionManager {
   handleSessionMessage(data) {
     switch (data.type) {
       case "message":
-        // If this is the WebSocket echo of a bot message we already rendered
-        // locally with citation pills, suppress the duplicate.
-        if (data.sender === 'bot' && window._localBotPending > 0) {
-          window._localBotPending--;
-          // Still run context sync and history save below — just skip the UI render.
-        } else {
-          this.addSharedMessage(
-            data.message,
-            data.sender,
-            data.timestamp,
-            data.userName,
-            data.files,
-          );
-        }
+        this.addSharedMessage(
+          data.message,
+          data.sender,
+          data.timestamp,
+          data.userName,
+          data.files,
+        );
         // Keep the AI context in sync on all clients so every student's
         // next message has full context of the shared conversation.
         if (window._inClassMode && window.context !== undefined) {

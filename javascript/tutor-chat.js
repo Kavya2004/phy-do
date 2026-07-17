@@ -1383,12 +1383,9 @@ async function processUserMessage(message) {
 		
 		// Handle bot response display/broadcasting
 		if (window.sessionManager && window.sessionManager.sessionId) {
-			// Render locally with citations right away (don't wait for WebSocket echo)
+			// Render locally with citations right away
 			addMessage(botResponse, 'bot', [], extractedCitation);
-			// Increment counter so the WebSocket echo of this bot message is suppressed.
-			// The server broadcasts to all clients including the sender — we skip that echo.
-			window._localBotPending = (window._localBotPending || 0) + 1;
-			// Broadcast to other session participants
+			// Broadcast to other session participants (server now excludes sender)
 			window.sessionManager.broadcastMessage(botResponse, 'bot');
 			// Also save to in-class DB and auto-title from this client
 			if (window.chatHistoryManager) {
