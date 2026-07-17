@@ -96,10 +96,7 @@ function setupWhiteboardControls() {
 		drawStudentButton.addEventListener('click', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-
-			resizeCanvas(studentCanvas, 'student');
 			toggleDrawing('student');
-
 		});
 	} else {
 
@@ -505,55 +502,47 @@ function resizeCanvas(canvas, boardType) {
 		return;
 	}
 
-	// Get the whiteboard container dimensions
-	const whiteboardSection = document.querySelector('.whiteboard-section');
-	const whiteboardContainer = panel.querySelector('.whiteboard-container') || panel;
-	
-	let containerRect;
-	if (whiteboardSection && whiteboardSection.getBoundingClientRect().width > 0) {
-		containerRect = whiteboardSection.getBoundingClientRect();
-	} else {
-		containerRect = whiteboardContainer.getBoundingClientRect();
+	// Measure the canvas element's own container directly so that toggling
+	// the math-buttons toolbar (which changes headerHeight) never causes a
+	// spurious resize and content shift.
+	const canvasContainer = canvas.parentElement || panel.querySelector('.whiteboard-container') || panel;
+	const containerRect = canvasContainer.getBoundingClientRect();
+
+	const newWidth  = Math.max(400, Math.floor(containerRect.width));
+	const newHeight = Math.max(300, Math.floor(containerRect.height));
+
+	// Skip resize if dimensions haven't actually changed (avoids content loss
+	// caused by layout reflows from toolbar visibility changes).
+	if (canvas.width === newWidth && canvas.height === newHeight) return;
+
+	// Save existing content at the OLD size
+	let tempCanvas = null;
+	const oldWidth  = canvas.width;
+	const oldHeight = canvas.height;
+	if (oldWidth > 0 && oldHeight > 0) {
+		tempCanvas = document.createElement('canvas');
+		tempCanvas.width  = oldWidth;
+		tempCanvas.height = oldHeight;
+		tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
 	}
-	
-	// Calculate new dimensions with proper margins
-	const headerHeight = panel.querySelector('.whiteboard-header')?.offsetHeight || 80;
-	const newWidth = Math.max(400, Math.floor(containerRect.width - 40));
-	const newHeight = Math.max(300, Math.floor(containerRect.height - headerHeight - 40));
 
+	// Resize the canvas (this clears it)
+	canvas.width  = newWidth;
+	canvas.height = newHeight;
 
+	const ctx = boardType === 'teacher' ? teacherCtx : studentCtx;
+	if (ctx) {
+		// Restore drawing properties
+		ctx.strokeStyle = '#333';
+		ctx.lineWidth = 4;
+		ctx.lineCap = 'round';
+		ctx.lineJoin = 'round';
+		ctx.globalCompositeOperation = 'source-over';
 
-	if (canvas.width !== newWidth || canvas.height !== newHeight) {
-		// Save existing content
-		let tempCanvas = null;
-		if (canvas.width > 0 && canvas.height > 0) {
-			tempCanvas = document.createElement('canvas');
-			tempCanvas.width = canvas.width;
-			tempCanvas.height = canvas.height;
-			const tempCtx = tempCanvas.getContext('2d');
-			tempCtx.drawImage(canvas, 0, 0);
+		// Scale-restore content so strokes stay in the same relative position
+		if (tempCanvas) {
+			ctx.drawImage(tempCanvas, 0, 0, oldWidth, oldHeight, 0, 0, newWidth, newHeight);
 		}
-
-		// Resize canvas
-		canvas.width = newWidth;
-		canvas.height = newHeight;
-
-		const ctx = boardType === 'teacher' ? teacherCtx : studentCtx;
-		if (ctx) {
-			// Reset canvas properties after resize
-			ctx.strokeStyle = '#333';
-			ctx.lineWidth = 4;
-			ctx.lineCap = 'round';
-			ctx.lineJoin = 'round';
-			ctx.globalCompositeOperation = 'source-over';
-
-			// Restore content if we saved it
-			if (tempCanvas && tempCanvas.width > 0 && tempCanvas.height > 0) {
-				ctx.drawImage(tempCanvas, 0, 0);
-			}
-		}
-		
-
 	}
 }
 
