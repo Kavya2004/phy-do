@@ -1299,13 +1299,16 @@ class SessionManager {
     }
   }
   updateSessionUI() {
-    const createBtn = document.getElementById("createSessionBtn");
-    const joinBtn = document.getElementById("joinSessionBtn");
-    const browseBtn = document.getElementById("publicSessionsBtn");
-    const leaveBtn = document.getElementById("leaveSessionBtn");
-    const shareBtn = document.getElementById("shareSessionBtn");
+    const createBtn  = document.getElementById("createSessionBtn");
+    const joinBtn    = document.getElementById("joinSessionBtn");
+    const browseBtn  = document.getElementById("publicSessionsBtn");
+    const leaveBtn   = document.getElementById("leaveSessionBtn");
+    const shareBtn   = document.getElementById("shareSessionBtn");
     const downloadBtn = document.getElementById("downloadSessionBtn");
-    
+
+    // These buttons don't exist in in-class mode — bail out safely.
+    if (!createBtn || !joinBtn || !browseBtn || !leaveBtn || !shareBtn || !downloadBtn) return;
+
     if (this.sessionId) {
       createBtn.style.display = "none";
       joinBtn.style.display = "none";
@@ -1321,7 +1324,7 @@ class SessionManager {
       shareBtn.style.display = "none";
       downloadBtn.style.display = "none";
     }
-    
+
     this.renderParticipants();
     setTimeout(() => this.setupVoiceControls(), 100);
   }
@@ -1818,4 +1821,4 @@ class SessionManager {
     }
   }
 }
-window.sessionManager = new SessionManager();hm 
+window.sessionManager = new SessionManager();

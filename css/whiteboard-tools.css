@@ -223,14 +223,19 @@
 /* Enhanced math buttons to work with new tools */
 .math-buttons {
     display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 50;
     gap: 6px;
     flex-wrap: wrap;
     align-items: center;
-    margin-top: 8px;
-    padding: 12px;
-    background: rgba(0, 123, 255, 0.05);
-    border-radius: 8px;
-    border: 1px solid rgba(0, 123, 255, 0.1);
+    padding: 8px 12px;
+    background: white;
+    border-bottom: 2px solid rgba(0, 123, 255, 0.2);
+    border-top: 1px solid #dee2e6;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .math-buttons button {
