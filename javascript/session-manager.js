@@ -1037,6 +1037,21 @@ class SessionManager {
       ${filesHtml}
     `;
 
+    // Attach citation pills for bot messages — consume the next pending citation
+    // batch that was stashed by tutor-chat.js before broadcasting.
+    if (sender === 'bot' && window._pendingCitations && window._pendingCitations.length > 0) {
+      const citations = window._pendingCitations.shift();
+      if (citations && citations.length > 0 && typeof window._buildCitationHTML === 'function') {
+        const citationHTML = window._buildCitationHTML(citations);
+        if (citationHTML) {
+          const pill = document.createElement('div');
+          pill.className = 'citation-wrap';
+          pill.innerHTML = citationHTML;
+          content.appendChild(pill);
+        }
+      }
+    }
+
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(content);
     chatMessages.appendChild(messageDiv);

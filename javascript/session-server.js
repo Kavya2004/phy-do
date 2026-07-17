@@ -463,8 +463,7 @@ wss.on("connection", (ws, req) => {
               message.files,
             );
 
-            // Exclude the sender's own ws so they don't receive an echo —
-            // the client already renders the message locally with citation pills.
+            // Broadcast to all participants including sender so everyone sees the message.
             broadcastToSession(sessionId, {
               type: "message",
               message: message.message,
@@ -472,7 +471,7 @@ wss.on("connection", (ws, req) => {
               userName: userName,
               timestamp: messageObj.timestamp,
               files: message.files || [],
-            }, ws);
+            });
 
             console.log(
               `Message in session ${sessionId} from ${userName}: ${message.message.substring(0, 50)}...`,

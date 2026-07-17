@@ -140,6 +140,35 @@ function initializeChat() {
         const max = 18;
         if (context.length > max) context = [context[0], ...context.slice(-(max - 1))];
     };
+
+    // Build citation pill HTML from a citations array — shared with addSharedMessage
+    // in session-manager.js so in-class bot messages get the same pills.
+    window._buildCitationHTML = function (citation) {
+        if (!citation || citation.length === 0) return '';
+        return citation.map(c => {
+            const pageLabel = c.page ? ` · p.${c.page}` : '';
+            const icon = getSourceIcon(c.name);
+            const safeName = (c.name || '').replace(/'/g, "\\'");
+
+            if (/video links|lecture video/i.test(c.name || '')) return '';
+
+            const isTextbook = /college physics|textbook|physics.?2e/i.test(c.name || '');
+            if (isTextbook && c.page) {
+                return `<span class="citation-pill" onclick="showBookRef(${c.page})" style="cursor:pointer" title="View page ${c.page}">${icon} ${c.name}${pageLabel}</span>`;
+            }
+            if (c.drive_file_id) {
+                const driveUrl = `https://drive.google.com/file/d/${c.drive_file_id}/preview${c.page ? `#page=${c.page}` : ''}`;
+                return `<span class="citation-pill" onclick="showDriveRef('${driveUrl}','${safeName}',${c.page||'null'})" style="cursor:pointer" title="View source">${icon} ${c.name}${pageLabel}</span>`;
+            }
+            if (c.url) return '';
+            if (c.text) {
+                const safeText = c.text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+                return `<span class="citation-pill" onclick="showTextRef('${safeText}','${safeName}',${c.page||1})" style="cursor:pointer" title="View source">${icon} ${c.name}${pageLabel}</span>`;
+            }
+            if (!c.name) return '';
+            return `<span class="citation-pill" title="Source reference">${icon} ${c.name}${pageLabel}</span>`;
+        }).join('');
+    };
 }
 let uploadedFiles = [];
 
@@ -1383,9 +1412,11 @@ async function processUserMessage(message) {
 		
 		// Handle bot response display/broadcasting
 		if (window.sessionManager && window.sessionManager.sessionId) {
-			// Render locally with citations right away
-			addMessage(botResponse, 'bot', [], extractedCitation);
-			// Broadcast to other session participants (server now excludes sender)
+			// Stash citations so addSharedMessage can pick them up when the
+			// WebSocket echo arrives. Keyed by a hash of the message content.
+			window._pendingCitations = window._pendingCitations || [];
+			window._pendingCitations.push(extractedCitation);
+			// Broadcast — server echoes back to everyone including sender
 			window.sessionManager.broadcastMessage(botResponse, 'bot');
 			// Also save to in-class DB and auto-title from this client
 			if (window.chatHistoryManager) {
