@@ -25,8 +25,15 @@
 }
 
 @keyframes slideIn {
-    from { transform: translateY(-50px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .quiz-header {
@@ -189,8 +196,15 @@
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .hint-content {
@@ -268,26 +282,56 @@
         width: 95%;
         margin: 5% auto;
     }
-    
+
     .quiz-content {
         padding: 20px;
     }
-    
+
     .question-text {
         font-size: 1.1em;
     }
-    
+
     .quiz-controls {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 10px;
     }
-    
+
     .quiz-controls button:last-child {
         grid-column: 1 / -1;
     }
-    
+
     .quiz-btn {
         width: 100%;
     }
+}
+
+/* Quiz menu popup (shown when Quiz button in chat controls is clicked) */
+.quiz-menu {
+    position: absolute;
+    bottom: 60px;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    padding: 15px;
+    min-width: 200px;
+    z-index: 100;
+}
+
+.quiz-menu-item {
+    display: block;
+    width: 100%;
+    padding: 10px 15px;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 8px;
+    margin-bottom: 5px;
+    transition: background 0.2s;
+}
+
+.quiz-menu-item:hover {
+    background: #f0f0f0;
 }

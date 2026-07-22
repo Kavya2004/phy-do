@@ -10,67 +10,8 @@ class QuizIntegration {
     }
 
     addQuizButton() {
-        // Add quiz button to the tutor interface
-        const chatContainer = document.querySelector('.chat-input-container');
-        if (chatContainer) {
-            const quizButton = document.createElement('button');
-            quizButton.innerHTML = 'Quiz';
-            quizButton.className = 'quiz-trigger-btn';
-            quizButton.title = 'Start a quiz';
-            quizButton.onclick = () => this.showQuizMenu();
-            
-            // Insert before the send button
-            const sendButton = document.getElementById('sendButton');
-            chatContainer.insertBefore(quizButton, sendButton);
-            
-            // Add styles for the button
-            const style = document.createElement('style');
-            style.textContent = `
-                .quiz-trigger-btn {
-                    background: #881c1c !important;
-                    color: white !important;
-                    border: none;
-                    padding: 10px 15px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    margin-right: 8px;
-                    transition: all 0.2s ease;
-                }
-                .quiz-trigger-btn:hover {
-                    background: #6e1616 !important;
-                    transform: translateY(-1px);
-                    box-shadow: 0 4px 12px rgba(136, 28, 28, 0.3);
-                }
-                .quiz-menu {
-                    position: absolute;
-                    bottom: 60px;
-                    right: 0;
-                    background: white;
-                    border-radius: 12px;
-                    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-                    padding: 15px;
-                    min-width: 200px;
-                    z-index: 100;
-                }
-                .quiz-menu-item {
-                    display: block;
-                    width: 100%;
-                    padding: 10px 15px;
-                    border: none;
-                    background: none;
-                    text-align: left;
-                    cursor: pointer;
-                    border-radius: 8px;
-                    margin-bottom: 5px;
-                    transition: background 0.2s;
-                }
-                .quiz-menu-item:hover {
-                    background: #f0f0f0;
-                }
-            `;
-            document.head.appendChild(style);
-        }
+        // Quiz button is now added by createChatControls() in tutor-chat.js
+        // alongside the Summary button — nothing to do here.
     }
 
     showQuizMenu() {

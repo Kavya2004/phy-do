@@ -542,8 +542,26 @@ function createChatControls() {
 	`;
 	summaryBtn.addEventListener('click', generateChatSummary);
 
+	const quizBtn = document.createElement('button');
+	quizBtn.innerHTML = 'Quiz';
+	quizBtn.id = 'quizControlBtn';
+	quizBtn.style.cssText = `
+		padding: 6px 12px;
+		border: 1px solid #ddd;
+		border-radius: 15px;
+		background: #881c1c;
+		color: white;
+		cursor: pointer;
+		font-size: 12px;
+		transition: all 0.3s ease;
+	`;
+	quizBtn.addEventListener('click', () => {
+		if (window.quizIntegration) window.quizIntegration.showQuizMenu();
+	});
+
 	controlsDiv.appendChild(saveBtn);
 	controlsDiv.appendChild(summaryBtn);
+	controlsDiv.appendChild(quizBtn);
 	chatContainer.insertBefore(controlsDiv, chatContainer.firstChild);
 }
 
