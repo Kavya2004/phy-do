@@ -484,3 +484,4 @@ IMPORTANT: ALL questions must be about "${topic}" ONLY. Return ONLY a JSON objec
 
 // Initialize quiz integration
 const quizIntegration = new QuizIntegration();
+window.quizIntegration = quizIntegration;
