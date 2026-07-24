@@ -727,7 +727,7 @@ connectInClassMongo();
 server.listen(PORT, () => {
   console.log(`Session server running on port ${PORT}`);
   console.log(
-    `WebSocket endpoint: wss://physics-ai-tutor.onrender.com/sessions/{sessionId}`,
+    `WebSocket endpoint: wss://phy-do.onrender.com/sessions/{sessionId}`,
   );
 });
 

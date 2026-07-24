@@ -1163,8 +1163,7 @@ async function loadInClassHistory() {
 	const sessionId = window.sessionManager && window.sessionManager.sessionId;
 	if (!sessionId || !window._inClassMode) return;
 
-	const BACKEND = 'https://physics-ai-tutor.onrender.com';
-	try {
+	const BACKEND = 'https://phy-do.onrender.com';	try {
 		const res = await fetch(`${BACKEND}/api/in-class/chat?sessionId=${encodeURIComponent(sessionId)}`);
 		if (!res.ok) return;
 		const convos = await res.json();
@@ -1778,7 +1777,7 @@ async function showBookRef(pageNumber) {
 
 	// Format page number with leading zeros to match pdftoppm output (e.g. page-0203.png)
 	const padded = String(pageNumber).padStart(4, '0');
-	const imgUrl = `https://physics-ai-tutor.onrender.com/api/pdf-image?page=${pageNumber}`;
+	const imgUrl = `https://phy-do.onrender.com/api/pdf-image?page=${pageNumber}`;
 
 	const img = new Image();
 	img.crossOrigin = 'anonymous';

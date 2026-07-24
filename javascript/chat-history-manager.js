@@ -12,7 +12,7 @@
  */
 
 (function () {
-  const BACKEND = 'https://physics-ai-tutor.onrender.com';
+  const BACKEND = 'https://phy-do.onrender.com';
 
   // ─── State ────────────────────────────────────────────────────────────────
   let _email = null;

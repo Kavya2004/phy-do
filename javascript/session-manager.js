@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://physics-ai-tutor.onrender.com";
+const BACKEND_URL = "https://phy-do.onrender.com";
 
 class SessionManager {
   constructor() {
@@ -793,7 +793,7 @@ class SessionManager {
       this.ws.close();
     }
 
-    this.ws = new WebSocket(`wss://physics-ai-tutor.onrender.com/sessions/${this.sessionId}`);
+    this.ws = new WebSocket(`wss://phy-do.onrender.com/sessions/${this.sessionId}`);
     this.lastPingTime = Date.now();
     this._reconnectAttempts = (this._reconnectAttempts || 0);
 
