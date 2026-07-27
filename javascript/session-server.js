@@ -4,10 +4,12 @@ import { v4 as uuidv4 } from "uuid";
 import cors from "cors";
 import http from "http";
 import fetch from 'node-fetch';
-import { execFile } from 'child_process';
 import { existsSync } from 'fs';
-import { readFile, unlink } from 'fs/promises';
-import { tmpdir } from 'os';
+import { readFile } from 'fs/promises';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 import { connectMongo, createSessionRecord, addStudentToSession, connectInClassMongo } from '../config/mongodb.js';
 import userActivityRouter from '../routes/user-activity.js';
 import chatHistoryRouter from '../routes/chat-history.js';
