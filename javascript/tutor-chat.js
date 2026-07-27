@@ -1,46 +1,25 @@
 let isProcessing = false;
+let tutorMode = null; // null = not yet chosen, 'D' = direct, 'S' = Socratic
+let _modePromptSent = false; // true once we've asked the D/S question
+
 let context = [
 	{
 		role: 'system',
-		content: `You are an AI physics tutor operating exclusively in Adversarial Learning Mode. You MUST follow every rule below without exception on every single response.
+		content: `You are a helpful and knowledgeable AI physics tutor. Your job is to help students understand introductory physics clearly and accurately.
 
-━━━ ADVERSARIAL LEARNING MODE — MANDATORY RULES ━━━
+You operate in one of two modes, chosen by the student at the start of each session:
 
-RULE 1 — NEVER CONFIRM WITHOUT CHALLENGING:
-You are FORBIDDEN from simply saying an answer is correct and moving on. Every correct answer MUST be followed by a deeper challenge. You MUST ask why the principle applies, or present a scenario where the student's logic would break down.
-BANNED responses: "That's right!", "Exactly!", "Correct!", "Great job!", "Yes, that's correct." — never use these alone.
-REQUIRED instead: "OK, but why does [principle] apply here and not [alternative]?" or "You're right — now can you tell me under what conditions that would no longer hold?"
+MODE D — DIRECT:
+Give clear, complete, well-explained answers. Walk through the reasoning step by step. Include relevant formulas with explanation of each variable. Be thorough but concise. Use examples where helpful.
 
-RULE 2 — COUNTEREXAMPLE FOR EVERY INCORRECT ANSWER:
-When a student gives a wrong answer, you MUST NOT simply correct them. You MUST construct a concrete counterexample that forces them to see the contradiction themselves.
-BANNED: "Actually, that's not right. The correct answer is..."
-REQUIRED: Pose a scenario that breaks their logic. E.g. if they say heavier objects fall faster: "If that's true, what happens when you tie a heavy and a light ball together — does the combined object fall faster or slower than the heavy one alone?"
+MODE S — SOCRATIC:
+Guide the student to the answer themselves through questions. Never give the answer outright. Ask one focused question at a time. When they get something right, acknowledge it briefly and push deeper. When they are wrong, pose a scenario that exposes the flaw in their reasoning rather than just correcting them.
 
-RULE 3 — DEMAND JUSTIFICATION FOR EVERY FORMULA OR PRINCIPLE:
-Whenever a student states a formula, law, or principle, you MUST ask them to justify why it applies to this specific situation before proceeding.
-BANNED: Accepting "F=ma" or "conservation of momentum" without interrogation.
-REQUIRED: "You said F=ma — why is that the right equation here? What does each term represent in this specific problem?"
-
-RULE 4 — TONE IS WARM BUT RELENTLESSLY PERSISTENT:
-You are intellectually curious and never condescending, but you NEVER let a student off the hook.
-You MUST open every challenge with a phrase such as:
-- "Interesting argument, but I see a problem..."
-- "That's a reasonable instinct — but let me push back on it."
-- "OK, but here's what I'm not sure about..."
-- "You're on to something, but consider this..."
-You MUST NOT use a neutral or validating opener before challenging.
-
-RULE 5 — ONE CHALLENGE PER RESPONSE:
-Each response MUST contain exactly one focused challenge, counterexample, or justification demand. Do NOT explain the full concept. Do NOT give the answer. End with a single direct question the student must answer.
-
-RULE 6 — NO UNSOLICITED EXPLANATIONS:
-You MUST NOT volunteer the correct explanation unless the student has made at least two genuine attempts and is clearly stuck. Even then, give only a minimal hint, then challenge again.
+The student's chosen mode will be noted in the conversation. Always follow it.
 
 Focus on core introductory physics topics only.
 
-
 REFERENCE LINKS INSTRUCTIONS:
-
 You have access to the student's physics course materials including lecture slides, textbook chapters, and other uploaded resources. Relevant excerpts will be provided in context under "COURSE MATERIALS".
 When answering, ALWAYS ground your response in the provided course material excerpts. Quote or paraphrase directly from them when relevant. Prefer the course materials over general knowledge.
 Do NOT invent, paraphrase, or rename source materials. If you refer to a source in your response text, use its EXACT name as listed in the COURSE MATERIALS context — nothing else.
@@ -115,6 +94,8 @@ function initializeChat() {
     initializeVoiceInput();
 
     addMessage("Hi there! I'm your physics tutor! Ask me anything about physics!", 'bot');
+    addMessage('Would you like me to give you the answer directly (reply "D"), or would you prefer me to work with you through it step by step (reply "S")?', 'bot');
+    _modePromptSent = true;
 
     document.addEventListener('paste', handlePasteEvent);
 
@@ -123,6 +104,8 @@ function initializeChat() {
     // Reset context to just the system prompt
     window._resetChatContext = function () {
         context = [context[0]];
+        tutorMode = null;
+        _modePromptSent = false;
     };
 
     // Add a message to the UI without triggering any DB save (used when replaying history)
@@ -1220,6 +1203,27 @@ async function processUserMessage(message) {
 		return; // Quiz command handled, don't process further
 	}
 
+	// ── Mode selection handling ──────────────────────────────────────────────
+	// If the mode-prompt has been sent and the student hasn't chosen yet,
+	// check if their reply is D or S before doing anything else.
+	if (_modePromptSent && tutorMode === null) {
+		const reply = message.trim().toUpperCase();
+		if (reply === 'D' || reply === 'S') {
+			tutorMode = reply;
+			addMessage(message, 'user');
+			const confirmation = tutorMode === 'D'
+				? "Got it — I'll give you direct, complete answers. What's your question?"
+				: "Got it — we'll work through it together. What's your question?";
+			addMessage(confirmation, 'bot');
+			context.push({ role: 'user', content: message });
+			context.push({ role: 'assistant', content: confirmation });
+			return;
+		}
+		// If they typed something other than D/S, treat it as their first real
+		// question and default to Socratic so the session isn't blocked.
+		tutorMode = 'S';
+	}
+
 	isProcessing = true;
 
 	// Process uploaded files if any
@@ -1342,23 +1346,20 @@ async function processUserMessage(message) {
 
 		}
 
-		// Reinforce the adversarial rules right before every call so they can
-		// never be buried by history or course-material context messages.
+		// Reinforce the active mode right before every call so it's never buried.
+		const modeReminder = tutorMode === 'D'
+			? 'ACTIVE MODE: D (Direct). Give a clear, complete, step-by-step explanation. Include relevant formulas with variable definitions. Be thorough.'
+			: 'ACTIVE MODE: S (Socratic). Do NOT give the answer. Ask exactly one focused guiding question. Acknowledge what is correct briefly, then push deeper. If wrong, expose the flaw with a counterexample scenario.';
 		context.push({
 			role: 'system',
-			content: `REMINDER — ADVERSARIAL LEARNING MODE IS ACTIVE. You MUST follow ALL rules without exception:
-• ONE challenge per response only. Do NOT give a lecture or explain the full concept.
-• Do NOT give the answer. End with exactly ONE direct question the student must answer.
-• No unsolicited explanations. If the student hasn't tried yet, ask them to try first.
-• Open with a challenge phrase ("That's a reasonable instinct — but let me push back on it.", "OK, but here's what I'm not sure about...", etc.)
-• BANNED: Long explanations, numbered lists of concepts, full definitions of laws.`
+			content: modeReminder
 		});
 
 		// Get AI response with files (only if files processed successfully)
 		let botResponse = await getGeminiResponse(context, processedFiles.length > 0 ? processedFiles : []);
 
-		// Remove the reinforcement message from context after use (it's ephemeral)
-		if (context[context.length - 1]?.content?.startsWith('REMINDER — ADVERSARIAL')) {
+		// Remove the mode reminder from context after use (it's ephemeral)
+		if (context[context.length - 1]?.content?.startsWith('ACTIVE MODE:')) {
 			context.pop();
 		}
 
