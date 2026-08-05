@@ -21,6 +21,9 @@ let pendingSymbol = null;
 // When true, resizeCanvas is a no-op — used to block spurious resizes that
 // fire because toggling the math-buttons toolbar changes the panel layout.
 let _suppressResize = false;
+// When true, the user is actively dragging the chat/whiteboard splitter —
+// canvas redraws are suppressed until the drag ends.
+let _isDraggingResize = false;
 
 
 let teacherSymbols = [];
@@ -202,9 +205,12 @@ function initializeWhiteboards() {
 
 	}, 200);
 	
-	// Debounced resize handler to prevent excessive operations
+	// Debounced resize handler to prevent excessive operations.
+	// Skip entirely while the user is dragging the splitter — canvas
+	// will be resized once on mouseup.
 	let resizeTimeout;
 	window.addEventListener('resize', () => {
+		if (_isDraggingResize) return;
 		clearTimeout(resizeTimeout);
 		resizeTimeout = setTimeout(() => {
 			resizeCanvases();
@@ -362,13 +368,24 @@ function setupResizeHandle() {
 	let isResizing = false;
 	let startX = 0;
 	let startWidth = 0;
+	let rafId = null;
+	let pendingWidth = null;
 
 	resizeHandle.addEventListener('mousedown', (e) => {
 		isResizing = true;
+		_isDraggingResize = true;
 		startX = e.clientX;
 		startWidth = parseInt(window.getComputedStyle(chatSection).width, 10);
+
+		// Freeze canvas redraws and kill transitions for the duration of the drag
 		document.body.style.cursor = 'col-resize';
 		document.body.style.userSelect = 'none';
+		chatSection.style.transition = 'none';
+		whiteboardSection.style.transition = 'none';
+		// Prevent mouse events on canvas/content so nothing repaints under the cursor
+		chatSection.style.pointerEvents = 'none';
+		whiteboardSection.style.pointerEvents = 'none';
+		resizeHandle.style.pointerEvents = 'auto'; // keep the handle itself active
 
 		resizeHandle.style.background = '#337810';
 		resizeHandle.style.color = 'white';
@@ -379,34 +396,49 @@ function setupResizeHandle() {
 
 	document.addEventListener('mousemove', (e) => {
 		if (!isResizing) return;
+		e.preventDefault();
 
 		const deltaX = e.clientX - startX;
 		const newWidth = startWidth + deltaX;
 		const minWidth = 250;
 		const maxWidth = window.innerWidth - 300;
 
-		if (newWidth >= minWidth && newWidth <= maxWidth) {
-			chatSection.style.flexBasis = newWidth + 'px';
-			chatSection.style.width = newWidth + 'px';
+		if (newWidth < minWidth || newWidth > maxWidth) return;
 
-			// Debounce the resize during manual resizing
-			clearTimeout(resizeTimeout);
-			resizeTimeout = setTimeout(() => {
-				resizeCanvases();
-			}, 50);
-		}
+		pendingWidth = newWidth;
 
-		e.preventDefault();
+		// Batch DOM writes into a single rAF — skip if one is already queued
+		if (rafId) return;
+		rafId = requestAnimationFrame(() => {
+			rafId = null;
+			if (pendingWidth === null) return;
+			// Only set flexBasis — no need to also set width; flex does the rest
+			chatSection.style.flexBasis = pendingWidth + 'px';
+			chatSection.style.maxWidth  = pendingWidth + 'px';
+			pendingWidth = null;
+		});
 	});
 
 	document.addEventListener('mouseup', () => {
-		if (isResizing) {
-			isResizing = false;
-			document.body.style.cursor = '';
-			document.body.style.userSelect = '';
-			resizeHandle.style.background = '#ddd';
-			resizeHandle.style.color = '#666';
-		}
+		if (!isResizing) return;
+		isResizing = false;
+		_isDraggingResize = false;
+		pendingWidth = null;
+		if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+
+		// Restore everything
+		document.body.style.cursor = '';
+		document.body.style.userSelect = '';
+		chatSection.style.transition = '';
+		whiteboardSection.style.transition = '';
+		chatSection.style.pointerEvents = '';
+		whiteboardSection.style.pointerEvents = '';
+
+		resizeHandle.style.background = '';
+		resizeHandle.style.color = '';
+
+		// Resize canvases exactly once after drag ends
+		resizeCanvases();
 	});
 }
 
@@ -495,7 +527,7 @@ function resizeCanvases() {
 }
 
 function resizeCanvas(canvas, boardType) {
-	if (_suppressResize) return;
+	if (_suppressResize || _isDraggingResize) return;
 	if (!canvas) {
 		console.warn(`Canvas not found for ${boardType}`);
 		return;

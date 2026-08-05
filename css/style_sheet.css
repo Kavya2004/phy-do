@@ -1027,6 +1027,7 @@ body {
 	flex-direction: column;
 	box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 	border-radius: 0;
+	will-change: flex-basis;
 }
 
 .chat-container {
@@ -1352,6 +1353,7 @@ body {
 	display: flex;
 	flex-direction: column;
 	background: white;
+	will-change: flex-basis;
 }
 
 .whiteboard-header {
@@ -2047,7 +2049,7 @@ body {
 	color: #6c757d;
 	font-size: 12px;
 	font-weight: bold;
-	transition: all 0.2s ease;
+	/* No transition — avoids fighting inline style changes during drag */
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 	z-index: 10;
 }
