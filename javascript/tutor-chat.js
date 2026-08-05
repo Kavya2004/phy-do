@@ -1,6 +1,7 @@
 let isProcessing = false;
-let tutorMode = null; // null = not yet chosen, 'D' = direct, 'S' = Socratic
+let tutorMode = null; // null = not yet chosen, 'D' = direct, 'S' = step-by-step
 let _modePromptSent = false; // true once we've asked the D/S question
+let _pendingQuestion = null; // stores the user's first question while waiting for D/S choice
 
 let context = [
 	{
@@ -92,8 +93,8 @@ function initializeChat() {
     initializeVoiceInput();
 
     addMessage("Hi there! I'm your physics tutor! Ask me anything about physics!", 'bot');
-    addMessage('Would you like me to give you the answer directly (reply <strong><u>"D"</u></strong>), or would you prefer me to walk you through it step by step (reply <strong><u>"S"</u></strong>)? <strong><u>IMPORTANT!</u></strong> At any time during our conversation, you can type <strong><u>"D"</u></strong> or <strong><u>"S"</u></strong> to switch between these two conversation modes.', 'bot');
-    _modePromptSent = true;
+    // D/S prompt will be shown after the user's first question, not here
+    _modePromptSent = false;
 
     document.addEventListener('paste', handlePasteEvent);
 
@@ -104,6 +105,7 @@ function initializeChat() {
         context = [context[0]];
         tutorMode = null;
         _modePromptSent = false;
+        _pendingQuestion = null;
     };
 
     // Add a message to the UI without triggering any DB save (used when replaying history)
@@ -1206,27 +1208,46 @@ async function processUserMessage(message) {
 	// and mid-conversation switching.
 	const modeReply = message.trim().toUpperCase();
 	if (modeReply === 'D' || modeReply === 'S') {
-		const previousMode = tutorMode;
 		tutorMode = modeReply;
 		addMessage(message, 'user');
+		context.push({ role: 'user', content: message });
 
 		let confirmation;
 		if (tutorMode === 'D') {
-			confirmation = 'Sounds good. Please see the answer key below. Try working through why it\'s correct on your own — that\'s where the real learning happens. Switch to <strong><u>"S"</u></strong> anytime if you want me to walk you through the steps.';
+			confirmation = 'Sounds good! I\'ll give you clear, complete answers. Switch to <strong><u>"S"</u></strong> anytime if you want me to walk you through the steps instead.';
 		} else {
-			confirmation = 'Great choice! Walking through it step by step will really help it stick. And remember, you can always type <strong><u>"D"</u></strong> later if you get stuck and prefer to see a more direct answer. Let\'s get started: what\'s the problem or topic you\'d like to work through?';
+			confirmation = 'Great choice! Walking through it step by step will really help it stick. And remember, you can always type <strong><u>"D"</u></strong> later if you prefer a direct answer.';
 		}
-
 		addMessage(confirmation, 'bot');
-		context.push({ role: 'user', content: message });
 		context.push({ role: 'assistant', content: confirmation });
+
+		// If there's a pending question from before the user chose a mode, answer it now
+		if (_pendingQuestion) {
+			const q = _pendingQuestion;
+			_pendingQuestion = null;
+			// Small delay so the confirmation message renders first
+			setTimeout(() => processUserMessage(q), 100);
+		}
 		return;
 	}
 
-	// If mode-prompt was sent but student hasn't chosen yet and typed something
-	// other than D/S, treat it as their first real question and default to Socratic.
-	if (_modePromptSent && tutorMode === null) {
-		tutorMode = 'S';
+	// If mode hasn't been chosen yet, hold the question and ask for D/S first
+	if (tutorMode === null) {
+		// Show the user's question in chat
+		addMessage(message, 'user');
+		context.push({ role: 'user', content: message });
+
+		// Store it so we can answer it once they pick a mode
+		_pendingQuestion = message;
+
+		// Ask for mode preference (only once)
+		if (!_modePromptSent) {
+			const modePrompt = 'Would you like me to give you the answer directly (reply <strong><u>"D"</u></strong>), or would you prefer me to walk you through it step by step (reply <strong><u>"S"</u></strong>)? <strong><u>IMPORTANT!</u></strong> At any time during our conversation, you can type <strong><u>"D"</u></strong> or <strong><u>"S"</u></strong> to switch between these two conversation modes.';
+			addMessage(modePrompt, 'bot');
+			context.push({ role: 'assistant', content: modePrompt });
+			_modePromptSent = true;
+		}
+		return;
 	}
 
 	isProcessing = true;
