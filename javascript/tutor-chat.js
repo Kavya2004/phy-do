@@ -7,15 +7,13 @@ let context = [
 		role: 'system',
 		content: `You are a helpful and knowledgeable AI physics tutor. Your job is to help students understand introductory physics clearly and accurately.
 
-You operate in one of two modes, chosen by the student at the start of each session:
+You operate in one of two modes, chosen by the student. The active mode will be specified before every message — always follow it precisely.
 
-MODE D — DIRECT:
-Give clear, complete, well-explained answers. Walk through the reasoning step by step. Include relevant formulas with explanation of each variable. Be thorough but concise. Use examples where helpful.
+MODE D — DIRECT ANSWER:
+Give a complete, well-structured answer immediately. State the answer upfront, walk through the full reasoning step by step, show all formulas with every variable defined and units specified, and show full calculations where relevant. End with a concise key takeaway. Never ask the student questions. Never withhold any part of the answer.
 
-MODE S — SOCRATIC:
-Guide the student to the answer themselves through questions. Never give the answer outright. Ask one focused question at a time. When they get something right, acknowledge it briefly and push deeper. When they are wrong, pose a scenario that exposes the flaw in their reasoning rather than just correcting them.
-
-The student's chosen mode will be noted in the conversation. Always follow it.
+MODE S — STEP-BY-STEP WALKTHROUGH (Socratic):
+Guide the student to discover the answer themselves. Never give the answer, the formula, or the next step directly. Ask exactly one focused question per response. If they are correct, affirm briefly and ask the next guiding question. If they are wrong, use a concrete scenario or counterexample to expose the flaw — do not correct them outright. Keep responses short: one acknowledgment (if needed) + one question.
 
 Focus on core introductory physics topics only.
 
@@ -94,7 +92,7 @@ function initializeChat() {
     initializeVoiceInput();
 
     addMessage("Hi there! I'm your physics tutor! Ask me anything about physics!", 'bot');
-    addMessage('Would you like me to give you the answer directly (reply "D"), or would you prefer me to work with you through it step by step (reply "S")?', 'bot');
+    addMessage('Would you like me to give you the answer directly (reply <strong><u>"D"</u></strong>), or would you prefer me to walk you through it step by step (reply <strong><u>"S"</u></strong>)? <strong><u>IMPORTANT!</u></strong> At any time during our conversation, you can type <strong><u>"D"</u></strong> or <strong><u>"S"</u></strong> to switch between these two conversation modes.', 'bot');
     _modePromptSent = true;
 
     document.addEventListener('paste', handlePasteEvent);
@@ -1204,23 +1202,30 @@ async function processUserMessage(message) {
 	}
 
 	// ── Mode selection handling ──────────────────────────────────────────────
-	// If the mode-prompt has been sent and the student hasn't chosen yet,
-	// check if their reply is D or S before doing anything else.
-	if (_modePromptSent && tutorMode === null) {
-		const reply = message.trim().toUpperCase();
-		if (reply === 'D' || reply === 'S') {
-			tutorMode = reply;
-			addMessage(message, 'user');
-			const confirmation = tutorMode === 'D'
-				? "Got it — I'll give you direct, complete answers. What's your question?"
-				: "Got it — we'll work through it together. What's your question?";
-			addMessage(confirmation, 'bot');
-			context.push({ role: 'user', content: message });
-			context.push({ role: 'assistant', content: confirmation });
-			return;
+	// Handle D/S at any point in the conversation — both for initial selection
+	// and mid-conversation switching.
+	const modeReply = message.trim().toUpperCase();
+	if (modeReply === 'D' || modeReply === 'S') {
+		const previousMode = tutorMode;
+		tutorMode = modeReply;
+		addMessage(message, 'user');
+
+		let confirmation;
+		if (tutorMode === 'D') {
+			confirmation = 'Sounds good. Please see the answer key below. Try working through why it\'s correct on your own — that\'s where the real learning happens. Switch to <strong><u>"S"</u></strong> anytime if you want me to walk you through the steps.';
+		} else {
+			confirmation = 'Great choice! Walking through it step by step will really help it stick. And remember, you can always type <strong><u>"D"</u></strong> later if you get stuck and prefer to see a more direct answer. Let\'s get started: what\'s the problem or topic you\'d like to work through?';
 		}
-		// If they typed something other than D/S, treat it as their first real
-		// question and default to Socratic so the session isn't blocked.
+
+		addMessage(confirmation, 'bot');
+		context.push({ role: 'user', content: message });
+		context.push({ role: 'assistant', content: confirmation });
+		return;
+	}
+
+	// If mode-prompt was sent but student hasn't chosen yet and typed something
+	// other than D/S, treat it as their first real question and default to Socratic.
+	if (_modePromptSent && tutorMode === null) {
 		tutorMode = 'S';
 	}
 
@@ -1348,8 +1353,27 @@ async function processUserMessage(message) {
 
 		// Reinforce the active mode right before every call so it's never buried.
 		const modeReminder = tutorMode === 'D'
-			? 'ACTIVE MODE: D (Direct). Give a clear, complete, step-by-step explanation. Include relevant formulas with variable definitions. Be thorough.'
-			: 'ACTIVE MODE: S (Socratic). Do NOT give the answer. Ask exactly one focused guiding question. Acknowledge what is correct briefly, then push deeper. If wrong, expose the flaw with a counterexample scenario.';
+			? `ACTIVE MODE: D — DIRECT ANSWER.
+Your job right now is to give a complete, well-structured direct answer. Follow these rules exactly:
+
+1. State the answer clearly upfront — do not make the student wait for it.
+2. Walk through the full reasoning step by step so the student can follow the logic.
+3. Include every relevant formula. For each formula, define every variable and its units.
+4. If numbers are involved, show the full calculation with units at every step.
+5. End with a one-sentence summary of the key takeaway or concept.
+6. Do NOT ask the student questions. Do NOT withhold any part of the answer.
+7. Be thorough but avoid padding — every sentence should add information.`
+
+			: `ACTIVE MODE: S — STEP-BY-STEP WALKTHROUGH (Socratic).
+Your job right now is to guide the student to the answer themselves. Follow these rules exactly:
+
+1. NEVER state the answer, the formula, or the next step directly.
+2. Ask exactly ONE focused question per response — no more.
+3. The question should target the next conceptual gap or the next logical step the student needs to figure out themselves.
+4. If the student's response is correct: briefly affirm it (one short sentence), then immediately ask the next guiding question to push them forward.
+5. If the student's response is wrong: do NOT say "that's wrong" or correct them directly. Instead, pose a concrete scenario or counterexample that leads them to discover the flaw in their own reasoning, then ask them to reconsider.
+6. Never give hints that are so strong they bypass the thinking — make them work for each step.
+7. Keep your response short: one acknowledgment sentence (if applicable) + one question. No long explanations.`;
 		context.push({
 			role: 'system',
 			content: modeReminder

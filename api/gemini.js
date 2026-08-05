@@ -89,10 +89,13 @@ export default async function handler(req, res) {
           }
       }
 
-      const systemMessage = messages.find(msg => msg.role === 'system');
-      if (systemMessage && geminiMessages.length > 0) {
+      // Collect ALL system messages (base prompt + course materials + mode reminder)
+      // and prepend them in order to the first user turn so Gemini sees everything.
+      const systemMessages = messages.filter(msg => msg.role === 'system');
+      if (systemMessages.length > 0 && geminiMessages.length > 0) {
+          const combinedSystem = systemMessages.map(m => m.content).join('\n\n---\n\n');
           if (geminiMessages[0].role === 'user') {
-              geminiMessages[0].parts[0].text = `${systemMessage.content}\n\nUser: ${geminiMessages[0].parts[0].text}`;
+              geminiMessages[0].parts[0].text = `${combinedSystem}\n\n---\n\nUser: ${geminiMessages[0].parts[0].text}`;
           }
       }
 
