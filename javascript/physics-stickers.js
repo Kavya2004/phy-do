@@ -280,13 +280,11 @@
       `padding:0`,
     ].join(';');
 
-    del.addEventListener('pointerdown', e => {
-      window._stickerActive = true;
+    del.addEventListener('click', e => {
       e.stopPropagation();
       e.preventDefault();
       el.remove();
       deselectAll();
-      setTimeout(() => { window._stickerActive = false; }, 0);
     });
 
     el.appendChild(img);
@@ -295,6 +293,8 @@
 
     // Select/deselect on click — capture:true fires BEFORE canvas listeners
     el.addEventListener('pointerdown', e => {
+      // If the tap is on the delete button, let its own click handler deal with it
+      if (e.target === del) return;
       window._stickerActive = true;          // tell canvas to stand down
       e.stopPropagation();
       selectSticker(el);
