@@ -377,15 +377,10 @@ function setupResizeHandle() {
 		startX = e.clientX;
 		startWidth = parseInt(window.getComputedStyle(chatSection).width, 10);
 
-		// Freeze canvas redraws and kill transitions for the duration of the drag
 		document.body.style.cursor = 'col-resize';
 		document.body.style.userSelect = 'none';
 		chatSection.style.transition = 'none';
 		whiteboardSection.style.transition = 'none';
-		// Prevent mouse events on canvas/content so nothing repaints under the cursor
-		chatSection.style.pointerEvents = 'none';
-		whiteboardSection.style.pointerEvents = 'none';
-		resizeHandle.style.pointerEvents = 'auto'; // keep the handle itself active
 
 		resizeHandle.style.background = '#337810';
 		resizeHandle.style.color = 'white';
@@ -426,18 +421,35 @@ function setupResizeHandle() {
 		pendingWidth = null;
 		if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
 
-		// Restore everything
 		document.body.style.cursor = '';
 		document.body.style.userSelect = '';
 		chatSection.style.transition = '';
 		whiteboardSection.style.transition = '';
-		chatSection.style.pointerEvents = '';
-		whiteboardSection.style.pointerEvents = '';
 
 		resizeHandle.style.background = '';
 		resizeHandle.style.color = '';
 
 		// Resize canvases exactly once after drag ends
+		resizeCanvases();
+	});
+
+	// Safety valve: if mouse leaves the window during drag, clean up so
+	// nothing stays locked. mouseup won't fire in that case.
+	document.addEventListener('mouseleave', () => {
+		if (!isResizing) return;
+		isResizing = false;
+		_isDraggingResize = false;
+		pendingWidth = null;
+		if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+
+		document.body.style.cursor = '';
+		document.body.style.userSelect = '';
+		chatSection.style.transition = '';
+		whiteboardSection.style.transition = '';
+
+		resizeHandle.style.background = '';
+		resizeHandle.style.color = '';
+
 		resizeCanvases();
 	});
 }
