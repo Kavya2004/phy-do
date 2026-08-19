@@ -674,11 +674,38 @@ function _addMessageInternal(text, sender, files = [], citation = null, silent =
 	}
 
 	content.innerHTML = displayText
+	.replace(/\[IMAGE:data:[^\]]+\]/g, '') // strip embedded image markers from text display
 	.replace(/\n/g, '<br>')
 	.replace(/<https?:\/\/[^>]+>/g, (match) => {
 		const url = match.slice(1, -1);
 		return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
 	});
+
+	// Render any embedded image markers ([IMAGE:dataurl]) — these come from
+	// persisted user messages that included uploaded images.
+	const imageMarkerRe = /\[IMAGE:(data:[^\]]+)\]/g;
+	let imgMatch;
+	while ((imgMatch = imageMarkerRe.exec(displayText)) !== null) {
+		const dataUrl = imgMatch[1];
+		const imgWrapper = document.createElement('div');
+		imgWrapper.style.cssText = 'margin-top: 6px;';
+		const img = document.createElement('img');
+		img.src = dataUrl;
+		img.style.cssText = 'max-width: 220px; max-height: 180px; border-radius: 8px; cursor: pointer; border: 1px solid #ddd;';
+		img.title = 'Click to view full size';
+		img.onclick = () => {
+			const modal = document.createElement('div');
+			modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:99999;cursor:pointer;';
+			const fullImg = document.createElement('img');
+			fullImg.src = dataUrl;
+			fullImg.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:8px;';
+			modal.appendChild(fullImg);
+			modal.onclick = () => modal.remove();
+			document.body.appendChild(modal);
+		};
+		imgWrapper.appendChild(img);
+		content.appendChild(imgWrapper);
+	}
 
 	if (citationHTML) {
 		const pill = document.createElement('div');
@@ -743,7 +770,17 @@ function _addMessageInternal(text, sender, files = [], citation = null, silent =
 	// Persist to MongoDB (skip when replaying history)
 	if (!silent && window.chatHistoryManager) {
 		const userName = (window.sessionManager && window.sessionManager.userName) || '';
-		window.chatHistoryManager.appendMessage(sender === 'bot' ? 'bot' : 'user', text, userName);
+		// For user messages that include images, embed the data URLs so they
+		// survive the round-trip to the DB and appear in chat history.
+		let persistContent = text;
+		if (sender === 'user' && files && files.length > 0) {
+			const imageMarkers = files
+				.filter(f => f.type && f.type.startsWith('image/') && f.data)
+				.map(f => `[IMAGE:${f.data}]`)
+				.join('');
+			if (imageMarkers) persistContent = text + '\n' + imageMarkers;
+		}
+		window.chatHistoryManager.appendMessage(sender === 'bot' ? 'bot' : 'user', persistContent, userName);
 	}
 
 }
@@ -1676,23 +1713,98 @@ async function generateAIDiagram(description, targetBoard = 'teacher') {
 
 function saveChatHistory() {
 	const messages = document.querySelectorAll('.message');
-	let chatHistory = 'Physics Tutor Chat History\n';
-	chatHistory += '================================\n\n';
+	if (!messages.length) return;
 
-	messages.forEach((message, index) => {
+	// jsPDF is loaded via CDN alongside jspdf in the page
+	const { jsPDF } = window.jspdf;
+	if (!jsPDF) {
+		alert('PDF library not loaded. Please try again in a moment.');
+		return;
+	}
+
+	const doc = new jsPDF();
+	const pageW = doc.internal.pageSize.width;
+	const pageH = doc.internal.pageSize.height;
+	const margin = 15;
+	const contentW = pageW - margin * 2;
+	const timestamp = new Date().toLocaleString();
+
+	// ── Header bar ──────────────────────────────────────────────────────────
+	doc.setFillColor(136, 28, 28); // maroon
+	doc.rect(0, 0, pageW, 22, 'F');
+	doc.setTextColor(255, 255, 255);
+	doc.setFontSize(13);
+	doc.setFont(undefined, 'bold');
+	doc.text('Physics 131 — Tutor Chat Notes', margin, 14);
+	doc.setFontSize(8);
+	doc.setFont(undefined, 'normal');
+	doc.text(`Saved: ${timestamp}`, pageW - margin, 14, { align: 'right' });
+
+	let y = 32;
+
+	const ensureSpace = (needed) => {
+		if (y + needed > pageH - 15) {
+			doc.addPage();
+			y = 15;
+		}
+	};
+
+	messages.forEach((message) => {
 		const isBot = message.classList.contains('bot-message');
-		const content = message.querySelector('.message-content').textContent;
-		const sender = isBot ? 'Tutor' : 'Student';
-		chatHistory += `${sender}: ${content}\n\n`;
+		const contentEl = message.querySelector('.message-content');
+		if (!contentEl) return;
+
+		// Get text (strip citation pills / file spans which are child elements)
+		const textContent = contentEl.innerText || contentEl.textContent || '';
+		const label = isBot ? 'Tutor' : 'Student';
+
+		// ── Sender pill ─────────────────────────────────────────────────────
+		ensureSpace(12);
+		if (isBot) {
+			doc.setFillColor(136, 28, 28); // maroon
+		} else {
+			doc.setFillColor(25, 118, 210); // blue
+		}
+		doc.roundedRect(margin, y - 6, label.length * 3.2 + 6, 8, 2, 2, 'F');
+		doc.setTextColor(255, 255, 255);
+		doc.setFontSize(7);
+		doc.setFont(undefined, 'bold');
+		doc.text(label.toUpperCase(), margin + 3, y);
+		y += 6;
+
+		// ── Message text ────────────────────────────────────────────────────
+		doc.setTextColor(30, 30, 30);
+		doc.setFontSize(9);
+		doc.setFont(undefined, 'normal');
+		const lines = doc.splitTextToSize(textContent.trim(), contentW);
+		lines.forEach(line => {
+			ensureSpace(5);
+			doc.text(line, margin, y);
+			y += 5;
+		});
+
+		// ── Embedded images (from [IMAGE:dataurl] markers in stored content) ──
+		const imgRe = /\[IMAGE:(data:[^\]]+)\]/g;
+		const rawHTML = contentEl.innerHTML || '';
+		// Also check <img> tags that were rendered into the DOM from the markers
+		contentEl.querySelectorAll('img').forEach(imgEl => {
+			try {
+				const src = imgEl.src || imgEl.getAttribute('src');
+				if (!src || !src.startsWith('data:image')) return;
+				const aspect = imgEl.naturalWidth > 0 ? imgEl.naturalHeight / imgEl.naturalWidth : 0.75;
+				const imgW = Math.min(contentW, 120);
+				const imgH = imgW * aspect;
+				ensureSpace(imgH + 6);
+				doc.addImage(src, 'PNG', margin, y, imgW, imgH);
+				y += imgH + 4;
+			} catch (_) {}
+		});
+
+		y += 4; // gap between messages
 	});
 
-	const blob = new Blob([chatHistory], { type: 'text/plain' });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = `tutor-chat-${new Date().toISOString().slice(0, 10)}.txt`;
-	a.click();
-	URL.revokeObjectURL(url);
+	const filename = `physics-131-chat-${new Date().toISOString().slice(0, 10)}.pdf`;
+	doc.save(filename);
 }
 
 async function generateChatSummary() {

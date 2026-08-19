@@ -105,7 +105,7 @@ export default async function handler(req, res) {
               temperature: 0.7,
               topK: 40,
               topP: 0.95,
-              maxOutputTokens: 8192,
+              maxOutputTokens: 65536,
           }
       };
 
@@ -123,8 +123,16 @@ export default async function handler(req, res) {
       }
 
       const data = await response.json();
-      const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      
+
+      // gemini-2.5-flash is a thinking model — it returns multiple parts where the
+      // first part(s) may be internal reasoning (thought: true). Filter those out
+      // and join only the real text parts.
+      const parts = data.candidates?.[0]?.content?.parts ?? [];
+      const generatedText = parts
+          .filter(p => !p.thought)
+          .map(p => p.text ?? '')
+          .join('');
+
       if (!generatedText) {
           throw new Error('No response generated from Gemini');
       }

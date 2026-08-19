@@ -6,9 +6,6 @@ class QuizSystem {
         this.hintsUsed = [];
         this.score = 0;
         this.timeStarted = null;
-        this.questionTimer = null;
-        this.questionTimeLimit = 120;
-        this.questionTimeRemaining = 0;
         this.init();
     }
 
@@ -24,10 +21,6 @@ class QuizSystem {
                     <button class="quiz-close" onclick="quizSystem.closeQuiz()">&times;</button>
                     <div class="quiz-header">
                         <h2 class="quiz-title" id="quizTitle">Quiz</h2>
-                        <div class="quiz-timer" id="quizTimer" style="display: none;">
-                            <span class="timer-icon">⏱️</span>
-                            <span class="timer-text" id="timerText">2:00</span>
-                        </div>
                         <div class="quiz-progress">
                             <div class="quiz-progress-bar" id="progressBar"></div>
                         </div>
@@ -61,9 +54,6 @@ class QuizSystem {
         document.getElementById('quizTitle').textContent = quizData.title;
         document.getElementById('quizModal').style.display = 'block';
         
-        const timerElement = document.getElementById('quizTimer');
-        timerElement.style.display = 'none';
-        
         this.showQuestion();
     }
 
@@ -95,7 +85,8 @@ class QuizSystem {
                             ${this.hintsUsed[this.currentQuestionIndex] ? 'style="display: none;"' : ''}>
                         💡 Hint
                     </button>
-                    <button class="quiz-btn quiz-btn-primary" id="nextBtn" onclick="quizSystem.nextQuestion()" disabled>
+                    <button class="quiz-btn quiz-btn-primary" id="nextBtn" onclick="quizSystem.nextQuestion()" 
+                            ${this.currentQuiz.difficulty === 'hard' ? '' : 'disabled'}>
                         ${this.currentQuestionIndex === this.currentQuiz.questions.length - 1 ? 'Finish Quiz' : 'Next'}
                     </button>
                 </div>
@@ -153,8 +144,6 @@ class QuizSystem {
     nextQuestion() {
         if (this.userAnswers[this.currentQuestionIndex] === undefined && this.currentQuiz.difficulty !== 'hard') return;
         
-        this.clearQuestionTimer();
-        
         if (this.currentQuestionIndex < this.currentQuiz.questions.length - 1) {
             this.currentQuestionIndex++;
             this.showQuestion();
@@ -165,7 +154,6 @@ class QuizSystem {
 
     previousQuestion() {
         if (this.currentQuestionIndex > 0) {
-            this.clearQuestionTimer();
             this.currentQuestionIndex--;
             this.showQuestion();
         }
@@ -189,9 +177,6 @@ class QuizSystem {
     }
 
     showResults() {
-        this.clearQuestionTimer();
-        document.getElementById('quizTimer').style.display = 'none';
-        
         const percentage = Math.round((this.score / this.currentQuiz.questions.length) * 100);
         const timeElapsed = Math.round((new Date() - this.timeStarted) / 1000);
         
@@ -262,7 +247,6 @@ class QuizSystem {
     }
 
     reviewAnswers() {
-        document.getElementById('quizTimer').style.display = 'none';
         this.currentQuestionIndex = 0;
         this.showReview();
     }
@@ -326,7 +310,6 @@ class QuizSystem {
     }
 
     closeQuiz() {
-        this.clearQuestionTimer();
         document.getElementById('quizModal').style.display = 'none';
         this.currentQuiz = null;
         this.currentQuestionIndex = 0;
@@ -384,63 +367,6 @@ class QuizSystem {
         return data.response || 'Consider the fundamental definition and eliminate incorrect options.';
     }
     
-    startQuestionTimer() {
-        this.questionTimeRemaining = this.questionTimeLimit;
-        this.updateTimerDisplay();
-        
-        this.questionTimer = setInterval(() => {
-            this.questionTimeRemaining--;
-            this.updateTimerDisplay();
-            
-            if (this.questionTimeRemaining <= 0) {
-                this.handleTimeUp();
-            }
-        }, 1000);
-    }
-    
-    clearQuestionTimer() {
-        if (this.questionTimer) {
-            clearInterval(this.questionTimer);
-            this.questionTimer = null;
-        }
-    }
-    
-    updateTimerDisplay() {
-        const minutes = Math.floor(this.questionTimeRemaining / 60);
-        const seconds = this.questionTimeRemaining % 60;
-        const timerText = document.getElementById('timerText');
-        
-        if (timerText) {
-            timerText.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            
-            const timerElement = document.getElementById('quizTimer');
-            if (this.questionTimeRemaining <= 30) {
-                timerElement.style.color = '#dc3545';
-            } else if (this.questionTimeRemaining <= 60) {
-                timerElement.style.color = '#ffc107';
-            } else {
-                timerElement.style.color = '#ffffff';
-            }
-        }
-    }
-    
-    handleTimeUp() {
-        this.clearQuestionTimer();
-        
-        const timerText = document.getElementById('timerText');
-        if (timerText) {
-            timerText.textContent = 'Time Up!';
-        }
-        
-        setTimeout(() => {
-            if (this.currentQuestionIndex < this.currentQuiz.questions.length - 1) {
-                this.currentQuestionIndex++;
-                this.showQuestion();
-            } else {
-                this.finishQuiz();
-            }
-        }, 1500);
-    }
 }
 
 // Sample quiz data - physics textbook based

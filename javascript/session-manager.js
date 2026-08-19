@@ -81,69 +81,7 @@ class SessionManager {
       <span>🏫 In-Class Mode</span>
       <span style="opacity:0.7;">|</span>
       <span>${sessionTitle}</span>
-      <span style="opacity:0.7;">|</span>
-      <div id="inClassParticipantsDropdown" style="position:relative; display:inline-block;">
-        <button id="inClassParticipantsBtn" style="
-          background: rgba(255,255,255,0.15);
-          border: 1px solid rgba(255,255,255,0.3);
-          color: white;
-          padding: 3px 10px;
-          border-radius: 12px;
-          font-size: 12px;
-          font-weight: 500;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          white-space: nowrap;
-        ">
-          <span id="inClassParticipantCount">Participants</span>
-          <span id="inClassParticipantsArrow" style="font-size:9px; opacity:0.8;">▼</span>
-        </button>
-        <div id="inClassParticipantsList" style="
-          display: none;
-          position: absolute;
-          top: calc(100% + 6px);
-          left: 50%;
-          transform: translateX(-50%);
-          background: white;
-          color: #333;
-          border-radius: 10px;
-          box-shadow: 0 6px 24px rgba(0,0,0,0.18);
-          min-width: 180px;
-          max-height: 260px;
-          overflow-y: auto;
-          z-index: 9999;
-          padding: 6px 0;
-        ">
-          <div style="padding: 6px 14px 4px; font-size: 11px; font-weight: 700; color: #881c1c; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f0f0f0; margin-bottom: 4px;">
-            Students in session
-          </div>
-          <div id="inClassParticipantsInner" style="padding: 0 4px;">
-            <div style="padding: 8px 10px; font-size: 12px; color: #999; text-align:center;">Loading...</div>
-          </div>
-        </div>
-      </div>
     `;
-
-    // Toggle dropdown on button click
-    setTimeout(() => {
-      const btn = document.getElementById('inClassParticipantsBtn');
-      const list = document.getElementById('inClassParticipantsList');
-      const arrow = document.getElementById('inClassParticipantsArrow');
-      if (btn && list) {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const isOpen = list.style.display === 'block';
-          list.style.display = isOpen ? 'none' : 'block';
-          if (arrow) arrow.textContent = isOpen ? '▼' : '▲';
-        });
-        document.addEventListener('click', () => {
-          list.style.display = 'none';
-          if (arrow) arrow.textContent = '▼';
-        });
-      }
-    }, 0);
 
     const chatContainer = document.querySelector('.chat-container');
     if (chatContainer) {
@@ -1150,44 +1088,7 @@ class SessionManager {
   }
 
   updateInClassBanner() {
-    const countEl = document.getElementById('inClassParticipantCount');
-    const innerEl = document.getElementById('inClassParticipantsInner');
-    if (!countEl) return;
-
-    if (innerEl) {
-      // Always include the current user, even if not yet in the participants map
-      const allParticipants = new Map(this.participants);
-      if (this.userName && !allParticipants.has(this.userName)) {
-        allParticipants.set(this.userName, {
-          userName: this.userName,
-          avatar: this.selectedAvatar || '👤',
-          color: this.selectedColor || '#6c757d',
-        });
-      }
-
-      if (allParticipants.size === 0) {
-        innerEl.innerHTML = `<div style="padding:8px 10px;font-size:12px;color:#999;text-align:center;">No students yet</div>`;
-      } else {
-        innerEl.innerHTML = Array.from(allParticipants.values()).map(p => {
-          const isMe = p.userName === this.userName;
-          return `
-            <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;transition:background 0.15s;"
-                 onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''">
-              <span style="
-                width:26px;height:26px;border-radius:50%;background:${p.color || '#6c757d'};
-                display:flex;align-items:center;justify-content:center;
-                font-size:14px;flex-shrink:0;
-              ">${p.avatar || '👤'}</span>
-              <span style="font-size:12px;font-weight:500;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.userName}</span>
-              ${isMe ? `<span style="font-size:10px;color:#881c1c;font-weight:600;margin-left:auto;flex-shrink:0;">(you)</span>` : ''}
-            </div>
-          `;
-        }).join('');
-      }
-
-      // Keep count in sync with the full list
-      countEl.textContent = `Participants (${allParticipants.size})`;
-    }
+    // Participant list display removed — nothing to update.
   }
 
   addParticipant(userName, participantData = null) {

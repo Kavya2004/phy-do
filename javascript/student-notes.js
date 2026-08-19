@@ -244,7 +244,7 @@ class NotebookManager {
         // Title
         doc.setFontSize(16);
         doc.setFont(undefined, 'bold');
-        doc.text('Probability & Stats Notes', margin, yPosition);
+        doc.text('Physics 131 Notes', margin, yPosition);
         yPosition += 10;
         
         // Date
@@ -310,7 +310,7 @@ class NotebookManager {
         }
         
         // Save PDF
-        const filename = `probability-notes-${new Date().toISOString().split('T')[0]}.pdf`;
+        const filename = `physics-131-notes-${new Date().toISOString().split('T')[0]}.pdf`;
         doc.save(filename);
     }
 

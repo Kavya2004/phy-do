@@ -38,7 +38,7 @@ class QuizIntegration {
         if (lowerMessage.includes('quiz') || lowerMessage.includes('test') || lowerMessage.includes('assessment')) {
             // Check for difficulty level in message
             let difficulty = 'easy';
-            if (lowerMessage.includes('hard') || lowerMessage.includes('difficult') || lowerMessage.includes('challenging') || lowerMessage.includes('timed')) {
+            if (lowerMessage.includes('hard') || lowerMessage.includes('difficult') || lowerMessage.includes('challenging')) {
                 difficulty = 'hard';
             } else if (lowerMessage.includes('medium') || lowerMessage.includes('intermediate')) {
                 difficulty = 'medium';
@@ -388,14 +388,28 @@ IMPORTANT: ALL questions must be about "${topic}" ONLY. Return ONLY a JSON objec
 
             try {
                 let jsonStr = data.response.trim();
+                // Robust extraction: strip markdown fences, then grab first {...} block
                 if (jsonStr.includes('```json')) {
                     jsonStr = jsonStr.split('```json')[1].split('```')[0].trim();
                 } else if (jsonStr.includes('```')) {
                     jsonStr = jsonStr.split('```')[1].split('```')[0].trim();
+                } else {
+                    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) jsonStr = jsonMatch[0];
                 }
-                quizSystem.startQuiz(JSON.parse(jsonStr));
+                const parsed = JSON.parse(jsonStr);
+                // Enforce the requested difficulty so Gemini can't override it
+                parsed.difficulty = difficulty;
+                if (!parsed.questions || parsed.questions.length === 0) {
+                    throw new Error('No questions parsed from response');
+                }
+                quizSystem.startQuiz(parsed);
             } catch (e) {
-                quizSystem.startQuiz(this.parseAIResponseToQuiz(data.response, topic));
+                const fallback = this.parseAIResponseToQuiz(data.response, topic, difficulty);
+                if (!fallback.questions || fallback.questions.length === 0) {
+                    throw new Error('Failed to parse quiz questions from AI response');
+                }
+                quizSystem.startQuiz(fallback);
             }
         } catch (error) {
             console.error('Error generating AI quiz:', error);
@@ -405,7 +419,7 @@ IMPORTANT: ALL questions must be about "${topic}" ONLY. Return ONLY a JSON objec
         }
     }
 
-    parseAIResponseToQuiz(aiResponse, topic) {
+    parseAIResponseToQuiz(aiResponse, topic, difficulty = 'easy') {
         // Simple parser for AI-generated quiz content
         const lines = aiResponse.split('\n').filter(line => line.trim());
         const questions = [];
@@ -443,7 +457,7 @@ IMPORTANT: ALL questions must be about "${topic}" ONLY. Return ONLY a JSON objec
         
         return {
             title: `${topic} Quiz`,
-            difficulty: 'easy',
+            difficulty: difficulty,
             questions: questions.slice(0, 5) // Limit to 5 questions
         };
     }
