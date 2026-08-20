@@ -33,8 +33,16 @@ class SessionManager {
 
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get("session");
+    // Only auto-join from URL in regular (non-in-class) mode.
+    // Defer by one tick so tutor.html has time to set window._inClassMode = true
+    // before this check runs. In-class sessions are joined via joinInClassSession()
+    // after login — the URL param must not hijack that flow.
     if (sessionId) {
-      this.joinSessionFromURL(sessionId);
+      setTimeout(() => {
+        if (!window._inClassMode) {
+          this.joinSessionFromURL(sessionId);
+        }
+      }, 0);
     }
     // In-class joining is triggered externally via joinInClassSession()
     // called from revealTutor() in tutor.html after login completes.
@@ -697,7 +705,10 @@ class SessionManager {
 
       this.connectToSession();
       this.updateSessionUI();
-      this.loadSessionHistory();
+      // History is replayed via the WebSocket "session_history" message that
+      // the server sends immediately after the "join" WS event. Calling
+      // loadSessionHistory() here would wipe the chat (data.messages is always
+      // empty from the HTTP join response) before WS history arrives.
 
       this.addSystemMessage(`${this.userName} joined the session`);
     } catch (error) {
