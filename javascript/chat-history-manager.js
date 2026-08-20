@@ -441,6 +441,22 @@
               });
               if (window._rebuildContext) window._rebuildContext(msgs);
               _inClassTitleSet = true;
+
+              // Restore tutorMode from history so a late-joining student doesn't
+              // see the D/S prompt again after _resetChatContext wiped it.
+              const modeMsg = msgs.find(
+                m => m.role === 'user' && (m.content.trim().toUpperCase() === 'D' || m.content.trim().toUpperCase() === 'S')
+              );
+              if (modeMsg && window._modePromptSent !== undefined) {
+                window.tutorMode = modeMsg.content.trim().toUpperCase();
+                window._modePromptSent = true;
+              } else {
+                // Check if the D/S prompt was at least sent (bot asked but no reply yet)
+                const promptSent = msgs.some(
+                  m => m.role === 'bot' && m.content && m.content.includes('"D"') && m.content.includes('reply')
+                );
+                if (promptSent) window._modePromptSent = true;
+              }
             }
           }
         } catch (e) {

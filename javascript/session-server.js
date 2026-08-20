@@ -427,12 +427,14 @@ wss.on("connection", (ws, req) => {
           sessionConnections.get(sessionId).push({ ws, userName });
 
           // Send session info + full participant list to the new joiner
+          // Include tutorMode so late-joiners immediately inherit the chosen mode
           ws.send(
             JSON.stringify({
               type: "session_info",
               sessionTitle: session.sessionTitle,
               isPublic: session.isPublic,
               participants: session.getParticipantsList(),
+              tutorMode: session.tutorMode || null,
             }),
           );
 
@@ -553,6 +555,19 @@ wss.on("connection", (ws, req) => {
             broadcastToSession(sessionId, {
               type: "participants_update",
               participants: session.getParticipantsList(),
+            });
+          }
+          break;
+
+        case "tutor_mode_change":
+          // Store the chosen mode on the session so late-joiners receive it
+          // via session_info, then relay to every client in the room.
+          if (message.mode === 'D' || message.mode === 'S') {
+            session.tutorMode = message.mode;
+            broadcastToSession(sessionId, {
+              type: "tutor_mode_change",
+              mode: message.mode,
+              userName: userName,
             });
           }
           break;

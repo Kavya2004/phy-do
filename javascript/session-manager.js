@@ -813,20 +813,25 @@ class SessionManager {
         // Keep the AI context in sync on all clients so every student's
         // next message has full context of the shared conversation.
         if (window._inClassMode && window.context !== undefined) {
-          // Use the module-level context array in tutor-chat.js
           const role = data.sender === 'bot' ? 'assistant' : 'user';
           const content = data.sender === 'bot'
             ? data.message
             : `${data.userName}: ${data.message}`;
-          // Only add if this message wasn't sent by me (sender already pushed it)
-          if (data.userName !== this.userName || data.sender === 'bot') {
+          // Only add for OTHER students' messages — the sender already pushed
+          // their own user message and the bot response to context directly in
+          // processUserMessage, so skip both to avoid duplicates.
+          const isMyUserMessage = data.sender === 'user' && data.userName === this.userName;
+          const isMyBotResponse = data.sender === 'bot' && data.userName === this.userName;
+          if (!isMyUserMessage && !isMyBotResponse) {
             window._pendingContextUpdate = window._pendingContextUpdate || [];
             window._pendingContextUpdate.push({ role, content });
           }
         }
-        // Save incoming messages from others into the shared session record.
-        // (The sender's own messages are saved by _addMessageInternal in tutor-chat.js.)
-        if (window._inClassMode && data.userName !== this.userName && window.chatHistoryManager) {
+        // Save all messages to the shared in-class DB record.
+        // All three cases must be handled here because in session mode all messages
+        // go through broadcastMessage → WebSocket echo → addSharedMessage, which
+        // bypasses _addMessageInternal (and its DB persist call) entirely.
+        if (window._inClassMode && window.chatHistoryManager) {
           const role = data.sender === 'bot' ? 'bot' : 'user';
           window.chatHistoryManager.appendMessage(role, data.message, data.userName);
         }
@@ -882,6 +887,11 @@ class SessionManager {
         this.currentSessionTitle = data.sessionTitle;
         this.updateSessionUI();
         this.updateParticipants(data.participants);
+        // If a mode was already chosen before this client joined, apply it immediately.
+        if (data.tutorMode) {
+          window.tutorMode = data.tutorMode;
+          window._modePromptSent = true;
+        }
         break;
       case "session_history":
         // Replay all previous messages for a newly joined participant
@@ -899,6 +909,15 @@ class SessionManager {
               msg.citations || [],
             );
           });
+          // If the mode prompt was already sent to this session (visible in
+          // history as a bot message containing the D/S question), mark it
+          // as sent so the next student's first message doesn't ask again.
+          const modePromptSeen = data.messages.some(
+            m => m.sender === 'bot' && m.message && m.message.includes('reply') && m.message.includes('"D"')
+          );
+          if (modePromptSeen) {
+            window._modePromptSent = true;
+          }
           // Also rebuild AI context from history so the new participant's
           // next message has full context of what was already discussed.
           if (window._rebuildContext) {
@@ -909,6 +928,31 @@ class SessionManager {
           }
         }
         break;
+
+      case "tutor_mode_change":
+        // Another student (or the server) changed the shared D/S mode.
+        // Apply it to every client in the session, including the sender
+        // (the sender's local tutorMode was already set before broadcasting,
+        //  but this ensures a clean sync for all others).
+        if (data.mode === 'D' || data.mode === 'S') {
+          window.tutorMode = data.mode;
+          window._modePromptSent = true;
+          // Show a subtle system message so everyone knows the mode changed.
+          const modeLabel = data.mode === 'D' ? 'Direct Answer' : 'Step-by-Step';
+          const who = data.userName ? `${data.userName}` : 'Someone';
+          this.addSystemMessage(`${who} switched to ${modeLabel} mode (${data.mode})`);
+        }
+        break;
+    }
+  }
+
+  broadcastTutorMode(mode) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        type: "tutor_mode_change",
+        mode: mode,
+        userName: this.userName,
+      }));
     }
   }
 

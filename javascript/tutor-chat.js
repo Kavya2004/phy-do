@@ -3,6 +3,19 @@ let tutorMode = null; // null = not yet chosen, 'D' = direct, 'S' = step-by-step
 let _modePromptSent = false; // true once we've asked the D/S question
 let _pendingQuestion = null; // stores the user's first question while waiting for D/S choice
 
+// Expose mode state as window globals so session-manager.js can sync them
+// from incoming WebSocket tutor_mode_change / session_info messages.
+Object.defineProperty(window, 'tutorMode', {
+    get: () => tutorMode,
+    set: (v) => { tutorMode = v; },
+    configurable: true,
+});
+Object.defineProperty(window, '_modePromptSent', {
+    get: () => _modePromptSent,
+    set: (v) => { _modePromptSent = v; },
+    configurable: true,
+});
+
 let context = [
 	{
 		role: 'system',
@@ -768,7 +781,12 @@ function _addMessageInternal(text, sender, files = [], citation = null, silent =
 	}
 
 	// Persist to MongoDB (skip when replaying history)
-	if (!silent && window.chatHistoryManager) {
+	// In-class (session) mode: all persistence goes through handleSessionMessage
+	// via the WebSocket echo path. Messages added locally (welcome greeting, D/S
+	// confirmation) should NOT be saved to the shared in-class record because
+	// they are UI-only and not part of the shared conversation transcript.
+	const _isInSession = window._inClassMode || (window.sessionManager && window.sessionManager.sessionId);
+	if (!silent && window.chatHistoryManager && !_isInSession) {
 		const userName = (window.sessionManager && window.sessionManager.userName) || '';
 		// For user messages that include images, embed the data URLs so they
 		// survive the round-trip to the DB and appear in chat history.
@@ -1241,49 +1259,69 @@ async function processUserMessage(message) {
 	}
 
 	// ── Mode selection handling ──────────────────────────────────────────────────────────────────────────
-	// In-class (session) mode: skip the D/S gate entirely so every participant
-	// message reaches the AI immediately without being held for a mode choice.
+	// In-class (session) mode: show the D/S prompt after the first question,
+	// broadcast any mode change to all students in the same session via WebSocket.
 	const _inSession = window._inClassMode || (window.sessionManager && window.sessionManager.sessionId);
-	if (_inSession) {
-		if (tutorMode === null) tutorMode = 'D';
-	} else {
-		// Handle D/S at any point in the at-home conversation.
-		const modeReply = message.trim().toUpperCase();
-		if (modeReply === 'D' || modeReply === 'S') {
-			tutorMode = modeReply;
-			addMessage(message, 'user');
-			context.push({ role: 'user', content: message });
 
-			let confirmation;
-			if (tutorMode === 'D') {
-				confirmation = 'Sounds good! I\'ll give you clear, complete answers. Switch to <strong><u>"S"</u></strong> anytime if you want me to walk you through the steps instead.';
-			} else {
-				confirmation = 'Great choice! Walking through it step by step will really help it stick. And remember, you can always type <strong><u>"D"</u></strong> later if you prefer a direct answer.';
-			}
+	// Handle D/S replies at any point in the conversation (both modes).
+	const modeReply = message.trim().toUpperCase();
+	if (modeReply === 'D' || modeReply === 'S') {
+		tutorMode = modeReply;
+		context.push({ role: 'user', content: message });
+
+		let confirmation;
+		if (tutorMode === 'D') {
+			confirmation = 'Sounds good! I\'ll give you clear, complete answers. Switch to <strong><u>"S"</u></strong> anytime if you want me to walk you through the steps instead.';
+		} else {
+			confirmation = 'Great choice! Walking through it step by step will really help it stick. And remember, you can always type <strong><u>"D"</u></strong> later if you prefer a direct answer.';
+		}
+		context.push({ role: 'assistant', content: confirmation });
+
+		if (_inSession && window.sessionManager) {
+			// In-class: broadcast both the student's "D"/"S" message and the
+			// confirmation so every student sees them in the shared chat.
+			window.sessionManager.broadcastMessage(message, 'user');
+			window.sessionManager.broadcastMessage(confirmation, 'bot');
+			window.sessionManager.broadcastTutorMode(tutorMode);
+		} else {
+			// At-home: add locally as before.
+			addMessage(message, 'user');
 			addMessage(confirmation, 'bot');
-			context.push({ role: 'assistant', content: confirmation });
-
-			if (_pendingQuestion) {
-				const q = _pendingQuestion;
-				_pendingQuestion = null;
-				setTimeout(() => processUserMessage(q), 100);
-			}
-			return;
 		}
 
-		if (tutorMode === null) {
-			addMessage(message, 'user');
-			context.push({ role: 'user', content: message });
-			_pendingQuestion = message;
+		if (_pendingQuestion) {
+			const q = _pendingQuestion;
+			_pendingQuestion = null;
+			setTimeout(() => processUserMessage(q), 100);
+		}
+		return;
+	}
 
-			if (!_modePromptSent) {
-				const modePrompt = 'Would you like me to give you the answer directly (reply <strong><u>"D"</u></strong>), or would you prefer me to walk you through it step by step (reply <strong><u>"S"</u></strong>)? <strong><u>IMPORTANT!</u></strong> At any time during our conversation, you can type <strong><u>"D"</u></strong> or <strong><u>"S"</u></strong> to switch between these two conversation modes.';
+	if (tutorMode === null) {
+		context.push({ role: 'user', content: message });
+		_pendingQuestion = message;
+
+		if (!_modePromptSent) {
+			const modePrompt = 'Would you like me to give you the answer directly (reply <strong><u>"D"</u></strong>), or would you prefer me to walk you through it step by step (reply <strong><u>"S"</u></strong>)? <strong><u>IMPORTANT!</u></strong> At any time during our conversation, you can type <strong><u>"D"</u></strong> or <strong><u>"S"</u></strong> to switch between these two conversation modes.';
+			context.push({ role: 'assistant', content: modePrompt });
+			_modePromptSent = true;
+			if (_inSession && window.sessionManager) {
+				// In-class: broadcast the student's question and the mode prompt
+				// so every student at the table sees both messages.
+				window.sessionManager.broadcastMessage(message, 'user');
+				window.sessionManager.broadcastMessage(modePrompt, 'bot');
+			} else {
+				addMessage(message, 'user');
 				addMessage(modePrompt, 'bot');
-				context.push({ role: 'assistant', content: modePrompt });
-				_modePromptSent = true;
 			}
-			return;
+		} else if (_inSession && window.sessionManager) {
+			// Mode prompt already sent — just broadcast the user question
+			// so it appears in the shared chat for everyone.
+			window.sessionManager.broadcastMessage(message, 'user');
+		} else {
+			addMessage(message, 'user');
 		}
+		return;
 	}
 
 	isProcessing = true;
@@ -1330,8 +1368,10 @@ async function processUserMessage(message) {
 		addMessage(userMessage, 'user', fileData);
 	}
 
-	// Always process with AI regardless of session mode
-	// This ensures the AI responds to all user messages in sessions
+	// processUserMessage is only ever called when THIS student submits a message —
+	// messages from other students arrive via WebSocket and go through
+	// handleSessionMessage, not here. So it's correct that every call to
+	// processUserMessage runs the AI, regardless of session mode.
 
 	showLoading();
 
