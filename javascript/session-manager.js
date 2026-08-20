@@ -952,6 +952,17 @@ class SessionManager {
           const modeLabel = data.mode === 'D' ? 'Direct Answer' : 'Step-by-Step';
           const who = data.userName ? `${data.userName}` : 'Someone';
           this.addSystemMessage(`${who} switched to ${modeLabel} mode (${data.mode})`);
+          // If this client had a pending question (stored while waiting for mode
+          // selection) and the mode change came from a DIFFERENT student, fire
+          // the pending question now so it gets answered.
+          // We check data.userName vs this.userName to know it came from someone else.
+          if (window._pendingQuestion && data.userName !== this.userName) {
+            const q = window._pendingQuestion;
+            window._pendingQuestion = null;
+            setTimeout(() => {
+              if (window.processUserMessage) window.processUserMessage(q);
+            }, 150);
+          }
         }
         break;
     }

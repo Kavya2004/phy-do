@@ -15,6 +15,11 @@ Object.defineProperty(window, '_modePromptSent', {
     set: (v) => { _modePromptSent = v; },
     configurable: true,
 });
+Object.defineProperty(window, '_pendingQuestion', {
+    get: () => _pendingQuestion,
+    set: (v) => { _pendingQuestion = v; },
+    configurable: true,
+});
 
 let context = [
 	{
