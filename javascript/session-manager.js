@@ -318,9 +318,11 @@ class SessionManager {
       item.addEventListener('click', () => {
         const sessionId = item.dataset.sessionId;
         const sessionTitle = item.querySelector('.session-title')?.textContent || '';
-        const tableNumber = sessionTitle.replace('Table ', '').trim();
         document.getElementById('publicSessionsModal').remove();
-        this.showJoinModal(tableNumber);
+        // Use the sessionId directly — don't re-resolve by table number.
+        // The old code discarded sessionId and re-looked up by title, which
+        // caused wrong-session joins when titles didn't match exactly "Table N".
+        this.showJoinModalWithSessionId(sessionId, sessionTitle);
       });
     });
   }
@@ -587,6 +589,48 @@ class SessionManager {
       modal.querySelector('#joinNameInput').focus();
       if (prefillTable) modal.querySelector('#joinTableInput').value = prefillTable;
     }, 100);
+  }
+
+  // Join a specific session by its known ID — used when the student clicks a
+  // session in the public list. Bypasses the by-table lookup entirely so the
+  // student is guaranteed to join exactly the session they clicked.
+  showJoinModalWithSessionId(sessionId, sessionTitle) {
+    const modal = document.createElement("div");
+    modal.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;`;
+    modal.innerHTML = `
+      <div style="background:white;padding:24px;border-radius:12px;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+        <h3 style="margin:0 0 4px 0;color:#333;font-size:18px;">Join Session</h3>
+        <p style="margin:0 0 16px 0;color:#666;font-size:13px;">${sessionTitle}</p>
+        <input type="text" id="joinNameInput2" placeholder="Your name" maxlength="20" style="width:100%;padding:12px;border:2px solid #e9ecef;border-radius:8px;font-size:14px;margin-bottom:12px;box-sizing:border-box;outline:none;">
+        <input type="email" id="joinEmailInput2" placeholder="UMass email (name@umass.edu)" style="width:100%;padding:12px;border:2px solid #e9ecef;border-radius:8px;font-size:14px;margin-bottom:20px;box-sizing:border-box;outline:none;">
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+          <button id="joinCancelBtn2" style="background:#6c757d;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;">Cancel</button>
+          <button id="joinConfirmBtn2" style="background:#007bff;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;">Join</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector('#joinCancelBtn2').onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    const handleJoin = () => {
+      const name  = modal.querySelector('#joinNameInput2').value.trim();
+      const email = modal.querySelector('#joinEmailInput2').value.trim();
+
+      if (!name)  { this.showNotification("Please enter your name", "error"); return; }
+      if (!email || !email.endsWith("@umass.edu")) { this.showNotification("Please enter a valid @umass.edu email", "error"); return; }
+
+      this.userName  = name;
+      this.userEmail = email;
+      // Join directly with the known sessionId — no re-lookup needed.
+      this.joinSession(sessionId);
+      modal.remove();
+    };
+
+    modal.querySelector('#joinConfirmBtn2').onclick = handleJoin;
+    modal.querySelector('#joinEmailInput2').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleJoin(); });
+    setTimeout(() => modal.querySelector('#joinNameInput2').focus(), 100);
   }
 
   showNameModal(action) {
