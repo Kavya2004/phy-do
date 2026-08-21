@@ -2,8 +2,8 @@ let isProcessing = false;
 let tutorMode = null; // null = not yet chosen, 'D' = direct, 'S' = step-by-step
 let _modePromptSent = false; // true once we've asked the D/S question
 let _pendingQuestion = null; // stores the user's first question while waiting for D/S choice
+let _pendingFiles = []; // stores processed files alongside _pendingQuestion so they replay correctly
 let _originalQuestion = null; // stores the student's original question so switching to D mid-S gives the full answer to it, not the last sub-question
-let _fileOnlyFirstTurn = false; // true when the first message was a file-only upload — D/S prompt shown after the first bot response
 
 // Pinned upload context — set once when a PDF or image is first uploaded,
 // re-injected as a system message before every subsequent Gemini call so
@@ -1300,6 +1300,57 @@ async function processUserMessage(message) {
 		return; // Quiz command handled, don't process further
 	}
 
+	// ── Pre-process uploaded files BEFORE the D/S gate ─────────────────────────
+	// This must happen first so that:
+	// (a) pinnedUploadContext is populated before we return to show the D/S prompt
+	// (b) processed files can be stashed in _pendingFiles and replayed after D/S
+	// Only run this when files are present AND we're not in the middle of a replay
+	// (replays already have _pendingFiles set and uploadedFiles cleared).
+	const isDidacticTrigger = message.trim().startsWith('DIDACTIC TRIGGER');
+	let earlyProcessedFiles = [];
+	let earlyFileData = [];
+	if (!isDidacticTrigger && window._replayProcessedFiles && window._replayProcessedFiles.length > 0) {
+		// Replay path: files were already processed on the first turn; reuse them.
+		earlyProcessedFiles = window._replayProcessedFiles;
+		earlyFileData = earlyProcessedFiles;
+		window._replayProcessedFiles = null;
+		window._isReplay = true; // suppress duplicate display below
+	} else if (uploadedFiles.length > 0 && !isDidacticTrigger) {
+		try {
+			earlyProcessedFiles = await processFilesForTutor(uploadedFiles);
+			earlyFileData = earlyProcessedFiles;
+
+			const uploadParts = [];
+			earlyProcessedFiles.forEach(f => {
+				if (f.type && f.type.startsWith('image/') && f.ocrText) {
+					uploadParts.push(`Image "${f.name}" — OCR-extracted text:\n${f.ocrText}`);
+				} else if (f.type === 'application/pdf') {
+					if (f.extractedText) {
+						uploadParts.push(`PDF "${f.name}" — extracted text:\n${f.extractedText}`);
+					} else {
+						uploadParts.push(
+							`PDF "${f.name}" was uploaded by the student. ` +
+							`Its full content was sent to Gemini on the first turn. ` +
+							`Treat it as the problem/document being discussed for the rest of this conversation.`
+						);
+					}
+				}
+			});
+			if (uploadParts.length > 0) {
+				pinnedUploadContext =
+					'UPLOADED PROBLEM CONTEXT (pinned — always refer back to this):\n' +
+					uploadParts.join('\n\n');
+			}
+		} catch (fileError) {
+			addMessage('Error processing files. Continuing without files.', 'bot');
+		}
+		// Clear the upload queue — files are now in earlyProcessedFiles
+		uploadedFiles = [];
+		const filePreview = document.getElementById('filePreview');
+		filePreview.innerHTML = '';
+		filePreview.style.display = 'none';
+	}
+
 	// ── Mode selection handling ──────────────────────────────────────────────────────────────────────────
 	// In-class (session) mode: show the D/S prompt after the first question,
 	// broadcast any mode change to all students in the same session via WebSocket.
@@ -1333,9 +1384,20 @@ async function processUserMessage(message) {
 		}
 
 		if (_pendingQuestion) {
-			// First-turn case: student answered D/S before any AI reply
+			// First-turn case: student answered D/S before any AI reply.
+			// Re-inject any pending files back into uploadedFiles so the normal
+			// processing path picks them up (they were pre-processed and stored
+			// as File-like objects in _pendingFiles).
 			const q = _pendingQuestion;
+			const pf = _pendingFiles;
 			_pendingQuestion = null;
+			_pendingFiles = [];
+			if (pf.length > 0) {
+				// Re-inject the already-processed file objects directly — we bypass
+				// processFilesForTutor by injecting into a module-level pending slot
+				// that processUserMessage will pick up before the gate.
+				window._replayProcessedFiles = pf;
+			}
 			setTimeout(() => processUserMessage(q), 100);
 		} else if (tutorMode === 'D' && previousMode === 'S' && _originalQuestion) {
 			// Mid-conversation switch S→D: re-answer the original question directly.
@@ -1362,84 +1424,54 @@ async function processUserMessage(message) {
 	}
 
 	if (tutorMode === null) {
-		// File-only first message (no text): the files will be cleared after processing,
-		// so we can't replay the message later via _pendingQuestion. Skip the D/S gate,
-		// answer immediately in direct mode, then ask for D/S preference afterwards.
-		if (uploadedFiles.length > 0 && !message.trim()) {
-			tutorMode = 'D';
-			_fileOnlyFirstTurn = true;
-			// Fall through to processing below — the D/S prompt will be appended
-			// after the bot responds (see post-response block below).
-		} else {
-			// Text message (with or without files): stash as pending, show D/S prompt.
-			context.push({ role: 'user', content: message });
-			_pendingQuestion = message;
-			_originalQuestion = message;
+		// Stash the question (and any already-processed files) so they can be
+		// replayed after the student picks D or S.
+		const displayMessage = message.trim() ||
+			(earlyProcessedFiles.some(f => f.type?.startsWith('image/'))
+				? 'I uploaded an image. Please look at it carefully and engage with it as my physics tutor.'
+				: earlyProcessedFiles.length > 0
+					? `I've uploaded these files: ${earlyProcessedFiles.map(f => f.name).join(', ')}`
+					: '');
+		context.push({ role: 'user', content: displayMessage });
+		_pendingQuestion = displayMessage;
+		_pendingFiles = earlyProcessedFiles; // replayed when D/S is answered
+		_originalQuestion = displayMessage;
 
-			if (!_modePromptSent) {
-				const modePrompt = 'Would you like me to give you the answer directly (reply <strong><u>"D"</u></strong>), or would you prefer me to walk you through it step by step (reply <strong><u>"S"</u></strong>)? <strong><u>IMPORTANT!</u></strong> At any time during our conversation, you can type <strong><u>"D"</u></strong> or <strong><u>"S"</u></strong> to switch between these two conversation modes.';
-				context.push({ role: 'assistant', content: modePrompt });
-				_modePromptSent = true;
-				if (_inSession && window.sessionManager) {
-					window.sessionManager.broadcastMessage(message, 'user');
-					window.sessionManager.broadcastMessage(modePrompt, 'bot');
-				} else {
-					addMessage(message, 'user');
-					addMessage(modePrompt, 'bot');
-				}
-			} else if (_inSession && window.sessionManager) {
-				window.sessionManager.broadcastMessage(message, 'user');
+		if (!_modePromptSent) {
+			const modePrompt = 'Would you like me to give you the answer directly (reply <strong><u>"D"</u></strong>), or would you prefer me to walk you through it step by step (reply <strong><u>"S"</u></strong>)? <strong><u>IMPORTANT!</u></strong> At any time during our conversation, you can type <strong><u>"D"</u></strong> or <strong><u>"S"</u></strong> to switch between these two conversation modes.';
+			context.push({ role: 'assistant', content: modePrompt });
+			_modePromptSent = true;
+			if (_inSession && window.sessionManager) {
+				window.sessionManager.broadcastMessage(displayMessage, 'user', earlyFileData);
+				window.sessionManager.broadcastMessage(modePrompt, 'bot');
 			} else {
-				addMessage(message, 'user');
+				addMessage(displayMessage, 'user', earlyFileData);
+				addMessage(modePrompt, 'bot');
 			}
-			return;
+		} else if (_inSession && window.sessionManager) {
+			window.sessionManager.broadcastMessage(displayMessage, 'user', earlyFileData);
+		} else {
+			addMessage(displayMessage, 'user', earlyFileData);
 		}
+		return;
 	}
 
 	isProcessing = true;
 
-	// Process uploaded files if any
-	let processedFiles = [];
-	let fileData = [];
+	// Files were already processed (and pinnedUploadContext already built) in the
+	// early block above. Merge with earlyProcessedFiles here.
+	let processedFiles = earlyProcessedFiles;
+	let fileData = earlyFileData;
 	if (uploadedFiles.length > 0) {
+		// Shouldn't normally happen (early block clears uploadedFiles), but handle
+		// any late-arriving files defensively.
 		try {
-			processedFiles = await processFilesForTutor(uploadedFiles);
+			const lateFiles = await processFilesForTutor(uploadedFiles);
+			processedFiles = [...processedFiles, ...lateFiles];
 			fileData = processedFiles;
-
-			// ── Pin uploaded content so it survives context trimming ──────────
-			// Build a text summary of the upload: OCR text for images, a note for
-			// PDFs (Gemini reads PDF bytes natively on turn 1; we store a label so
-			// subsequent turns know a PDF was shared).  This is stored once and
-			// re-injected as a system message before every Gemini call.
-			const uploadParts = [];
-			processedFiles.forEach(f => {
-				if (f.type && f.type.startsWith('image/') && f.ocrText) {
-					uploadParts.push(
-						`Image "${f.name}" — OCR-extracted text:\n${f.ocrText}`
-					);
-				} else if (f.type === 'application/pdf') {
-					if (f.extractedText) {
-						uploadParts.push(
-							`PDF "${f.name}" — extracted text:\n${f.extractedText}`
-						);
-					} else {
-						uploadParts.push(
-							`PDF "${f.name}" was uploaded by the student. ` +
-							`Its full content was sent to Gemini on the first turn. ` +
-							`Treat it as the problem/document being discussed for the rest of this conversation.`
-						);
-					}
-				}
-			});
-			if (uploadParts.length > 0) {
-				pinnedUploadContext =
-					'UPLOADED PROBLEM CONTEXT (pinned — always refer back to this):\n' +
-					uploadParts.join('\n\n');
-			}
 		} catch (fileError) {
 			addMessage('Error processing files. Continuing without files.', 'bot');
 		}
-		// Clear uploaded files after processing
 		uploadedFiles = [];
 		const filePreview = document.getElementById('filePreview');
 		filePreview.innerHTML = '';
@@ -1467,7 +1499,8 @@ async function processUserMessage(message) {
 
 	// Handle message display/broadcasting (only once, with the clean userMessage).
 	// Didactic triggers are invisible — they exist only to steer Gemini.
-	if (!isDidacticTrigger) {
+	// Replays also skip display — the message bubble was already shown on turn 1.
+	if (!isDidacticTrigger && !window._isReplay) {
 		if (window.sessionManager && window.sessionManager.sessionId) {
 			// In session mode, broadcast user message
 			window.sessionManager.broadcastMessage(userMessage, 'user', fileData);
@@ -1476,6 +1509,7 @@ async function processUserMessage(message) {
 			addMessage(userMessage, 'user', fileData);
 		}
 	}
+	window._isReplay = false; // reset for next call
 
 	// processUserMessage is only ever called when THIS student submits a message —
 	// messages from other students arrive via WebSocket and go through
@@ -1736,21 +1770,6 @@ Your job right now is to guide the student to the answer themselves. Follow thes
 			// Auto-generate conversation title from the first exchange
 			if (window.chatHistoryManager) {
 				window.chatHistoryManager.autoTitle(message, botResponse);
-			}
-		}
-
-		// If this was a file-only first turn we skipped the D/S gate and answered
-		// immediately in D mode. Now show the prompt so the student can switch to S.
-		if (_fileOnlyFirstTurn) {
-			_fileOnlyFirstTurn = false;
-			_modePromptSent = true;
-			tutorMode = null; // reset — student hasn't explicitly chosen yet
-			const modePrompt = 'That was a direct answer. Would you like me to walk you through the next problem step by step instead (reply <strong><u>"S"</u></strong>), or keep giving direct answers (reply <strong><u>"D"</u></strong>)? You can switch at any time.';
-			context.push({ role: 'assistant', content: modePrompt });
-			if (_inSession && window.sessionManager) {
-				window.sessionManager.broadcastMessage(modePrompt, 'bot');
-			} else {
-				addMessage(modePrompt, 'bot');
 			}
 		}
 
