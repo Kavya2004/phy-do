@@ -64,6 +64,22 @@ app.post('/api/sessions/create', (req, res) => {
     if (!hostName || !hostName.trim()) {
         return res.status(400).json({ error: 'Host name is required' });
     }
+
+    // Idempotent: if a session with this exact title already exists, return it.
+    // This prevents duplicate sessions when two students join simultaneously
+    // and both get a 404 from by-table-session before either create completes.
+    if (sessionTitle) {
+        const existing = Array.from(sessions.values()).find(s => s.sessionTitle === sessionTitle);
+        if (existing) {
+            console.log(`Session already exists for "${sessionTitle}" — returning existing: ${existing.sessionId}`);
+            // Add the new host as a participant if not already present
+            if (!existing.participants.has(hostName.trim())) {
+                existing.participants.set(hostName.trim(), { userName: hostName.trim(), avatar: avatar || '👨🏫', color: color || '#007bff', isHost: false, joinedAt: new Date() });
+            }
+            return res.json({ sessionId: existing.sessionId, message: 'Session created successfully', session: serializeSession(existing) });
+        }
+    }
+
     const sessionId = generateSessionId();
     const session = {
         sessionId,
@@ -132,10 +148,15 @@ app.get('/api/sessions/by-table-session/:tableNumber/:sessionNumber', (req, res)
     const tableNumber = Number(req.params.tableNumber);
     const sessionNumber = Number(req.params.sessionNumber);
     const sessionTitle = `Table ${tableNumber} Session ${sessionNumber}`;
+    console.log(`[by-table-session] lookup: "${sessionTitle}" | sessions in memory: [${Array.from(sessions.values()).map(s => `"${s.sessionTitle}"`).join(', ')}]`);
     const session = Array.from(sessions.values()).find(
         s => s.sessionTitle === sessionTitle
     );
-    if (!session) return res.status(404).json({ error: `No active session found for ${sessionTitle}` });
+    if (!session) {
+        console.log(`[by-table-session] NOT FOUND — 404`);
+        return res.status(404).json({ error: `No active session found for ${sessionTitle}` });
+    }
+    console.log(`[by-table-session] FOUND — ${session.sessionId}`);
     res.json({ sessionId: session.sessionId, sessionTitle: session.sessionTitle });
 });
 

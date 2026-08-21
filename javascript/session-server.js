@@ -244,7 +244,8 @@ app.post("/api/sessions/create", (req, res) => {
   }
 
   const sessionId = generateSessionId();
-  const session = new TutorSession(sessionId, hostName.trim(), isPublic, sessionTitle);  
+  const session = new TutorSession(sessionId, hostName.trim(), isPublic, sessionTitle);
+  console.log(`[create] new session: "${sessionTitle}" | sessionId: ${sessionId}`);
 
   session.participants.set(hostName.trim(), {
     userName: hostName.trim(),
@@ -326,10 +327,15 @@ app.get("/api/sessions/by-table-session/:tableNumber/:sessionNumber", (req, res)
   const tableNumber = Number(req.params.tableNumber);
   const sessionNumber = Number(req.params.sessionNumber);
   const sessionTitle = `Table ${tableNumber} Session ${sessionNumber}`;
+  console.log(`[by-table-session] lookup: "${sessionTitle}" | sessions in memory: [${Array.from(sessions.values()).map(s => `"${s.sessionTitle}"`).join(', ')}]`);
   const session = Array.from(sessions.values()).find(
     s => s.sessionTitle === sessionTitle
   );
-  if (!session) return res.status(404).json({ error: `No active session found for ${sessionTitle}` });
+  if (!session) {
+    console.log(`[by-table-session] NOT FOUND — returning 404`);
+    return res.status(404).json({ error: `No active session found for ${sessionTitle}` });
+  }
+  console.log(`[by-table-session] FOUND — sessionId: ${session.sessionId}`);
   res.json({ sessionId: session.sessionId, sessionTitle: session.sessionTitle });
 });
 
