@@ -22,6 +22,7 @@ import pineconeHandler from '../api/pinecone.js';
 import pdfContentHandler from '../api/pdf-content.js';
 import pdfPageHandler from '../api/pdf-page.js';
 import imageGenHandler from '../api/image-gen.js';
+import pdfExtractHandler from '../api/pdf-extract.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -40,7 +41,9 @@ app.use(cors({
 
 // Handle preflight for all routes
 app.options('/{*path}', cors());
-app.use(express.json());
+// Raise body limit to 10 MB — PDF base64 payloads for a 5-page exam can be
+// 1–3 MB; the default 100 KB Express limit causes PayloadTooLargeError.
+app.use(express.json({ limit: '10mb' }));
 
 // User activity (login / logout tracking)
 app.use('/api/user-activity', userActivityRouter);
@@ -58,6 +61,7 @@ app.post('/api/pinecone', (req, res) => pineconeHandler(req, res));
 app.post('/api/pdf-content', (req, res) => pdfContentHandler(req, res));
 app.post('/api/pdf-page', (req, res) => pdfPageHandler(req, res));
 app.post('/api/image-gen', (req, res) => imageGenHandler(req, res));
+app.post('/api/pdf-extract', (req, res) => pdfExtractHandler(req, res));
 // Handle OPTIONS preflight for all /api routes
 app.options('/api/:path', cors());
 

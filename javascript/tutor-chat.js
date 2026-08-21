@@ -2,6 +2,12 @@ let isProcessing = false;
 let tutorMode = null; // null = not yet chosen, 'D' = direct, 'S' = step-by-step
 let _modePromptSent = false; // true once we've asked the D/S question
 let _pendingQuestion = null; // stores the user's first question while waiting for D/S choice
+let _originalQuestion = null; // stores the student's original question so switching to D mid-S gives the full answer to it, not the last sub-question
+
+// Pinned upload context — set once when a PDF or image is first uploaded,
+// re-injected as a system message before every subsequent Gemini call so
+// Gemini always has the problem text even on follow-up turns.
+let pinnedUploadContext = null;
 
 // Expose mode state as window globals so session-manager.js can sync them
 // from incoming WebSocket tutor_mode_change / session_info messages.
@@ -394,6 +400,25 @@ function viewFile(fileName) {
 	};
 }
 
+async function extractPdfTextFromBase64(base64DataUrl) {
+	const endpoints = ['/api/pdf-extract', 'https://tutor.probabilitycourse.com/api/pdf-extract'];
+	for (const endpoint of endpoints) {
+		try {
+			const response = await fetch(endpoint, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ data: base64DataUrl })
+			});
+			if (!response.ok) continue;
+			const data = await response.json();
+			if (data.text && data.text.trim()) return data.text.trim();
+		} catch (_) {
+			continue;
+		}
+	}
+	return null;
+}
+
 async function processFilesForTutor(files) {
 	const processedFiles = [];
 
@@ -418,6 +443,17 @@ async function processFilesForTutor(files) {
 			} catch (ocrError) {
 				fileEntry.ocrText = null;
 			}
+		} else if (file.type === 'application/pdf') {
+			try {
+				const pdfText = await extractPdfTextFromBase64(base64);
+				if (pdfText) fileEntry.extractedText = pdfText;
+			} catch (_) {
+				fileEntry.extractedText = null;
+			}
+			// Drop the binary after extraction — the text is stored in pinnedUploadContext
+			// and re-injected on every turn as a system message. Re-sending the full
+			// base64 on every call would blow the 10 MB body limit and waste tokens.
+			delete fileEntry.data;
 		}
 
 		processedFiles.push(fileEntry);
@@ -1271,6 +1307,7 @@ async function processUserMessage(message) {
 	// Handle D/S replies at any point in the conversation (both modes).
 	const modeReply = message.trim().toUpperCase();
 	if (modeReply === 'D' || modeReply === 'S') {
+		const previousMode = tutorMode;
 		tutorMode = modeReply;
 		context.push({ role: 'user', content: message });
 
@@ -1295,9 +1332,19 @@ async function processUserMessage(message) {
 		}
 
 		if (_pendingQuestion) {
+			// First-turn case: student answered D/S before any AI reply
 			const q = _pendingQuestion;
 			_pendingQuestion = null;
 			setTimeout(() => processUserMessage(q), 100);
+		} else if (tutorMode === 'D' && previousMode === 'S' && _originalQuestion) {
+			// Mid-conversation switch S→D: re-answer the original question directly.
+			// We pass a DIDACTIC TRIGGER so Gemini knows to give the full answer to
+			// the root problem, not just respond to the last Socratic sub-question.
+			const trigger =
+				`DIDACTIC TRIGGER — The student has just switched to Direct Answer mode. ` +
+				`Ignore the Socratic sub-questions from earlier turns. ` +
+				`Give a complete, well-structured direct answer to their ORIGINAL question:\n\n"${_originalQuestion}"`;
+			setTimeout(() => processUserMessage(trigger), 100);
 		}
 		return;
 	}
@@ -1305,6 +1352,7 @@ async function processUserMessage(message) {
 	if (tutorMode === null) {
 		context.push({ role: 'user', content: message });
 		_pendingQuestion = message;
+		_originalQuestion = message; // remember this as the root question for the whole session
 
 		if (!_modePromptSent) {
 			const modePrompt = 'Would you like me to give you the answer directly (reply <strong><u>"D"</u></strong>), or would you prefer me to walk you through it step by step (reply <strong><u>"S"</u></strong>)? <strong><u>IMPORTANT!</u></strong> At any time during our conversation, you can type <strong><u>"D"</u></strong> or <strong><u>"S"</u></strong> to switch between these two conversation modes.';
@@ -1338,6 +1386,37 @@ async function processUserMessage(message) {
 		try {
 			processedFiles = await processFilesForTutor(uploadedFiles);
 			fileData = processedFiles;
+
+			// ── Pin uploaded content so it survives context trimming ──────────
+			// Build a text summary of the upload: OCR text for images, a note for
+			// PDFs (Gemini reads PDF bytes natively on turn 1; we store a label so
+			// subsequent turns know a PDF was shared).  This is stored once and
+			// re-injected as a system message before every Gemini call.
+			const uploadParts = [];
+			processedFiles.forEach(f => {
+				if (f.type && f.type.startsWith('image/') && f.ocrText) {
+					uploadParts.push(
+						`Image "${f.name}" — OCR-extracted text:\n${f.ocrText}`
+					);
+				} else if (f.type === 'application/pdf') {
+					if (f.extractedText) {
+						uploadParts.push(
+							`PDF "${f.name}" — extracted text:\n${f.extractedText}`
+						);
+					} else {
+						uploadParts.push(
+							`PDF "${f.name}" was uploaded by the student. ` +
+							`Its full content was sent to Gemini on the first turn. ` +
+							`Treat it as the problem/document being discussed for the rest of this conversation.`
+						);
+					}
+				}
+			});
+			if (uploadParts.length > 0) {
+				pinnedUploadContext =
+					'UPLOADED PROBLEM CONTEXT (pinned — always refer back to this):\n' +
+					uploadParts.join('\n\n');
+			}
 		} catch (fileError) {
 			addMessage('Error processing files. Continuing without files.', 'bot');
 		}
@@ -1351,26 +1430,32 @@ async function processUserMessage(message) {
 	// Detect if any of the uploaded files are images
 	const hasImages = processedFiles.some(f => f.type && f.type.startsWith('image/'));
 
-	// Prepare user message (include file info if files were uploaded)
+	// Prepare the message shown to the user — never mutate this with internal
+	// tags like "[Student whiteboard attached]"; those go only into contextMessage.
 	let userMessage = message.trim();
+
+	// DIDACTIC TRIGGER: internal system signal, never shown in the chat bubble.
+	const isDidacticTrigger = userMessage.startsWith('DIDACTIC TRIGGER');
+
 	if (processedFiles.length > 0) {
 		if (hasImages && !userMessage) {
-			// No text provided — give Gemini something to work with in adversarial mode
 			userMessage = 'I uploaded an image. Please look at it carefully and engage with it as my physics tutor.';
 		} else if (!userMessage) {
 			const fileNames = processedFiles.map((f) => f.name).join(', ');
 			userMessage = `I've uploaded these files: ${fileNames}`;
 		}
-		// Files (with base64 data) are sent directly to Gemini API
 	}
 
-	// Handle message display/broadcasting (only once!)
-	if (window.sessionManager && window.sessionManager.sessionId) {
-		// In session mode, broadcast user message
-		window.sessionManager.broadcastMessage(userMessage, 'user', fileData);
-	} else {
-		// Not in session, add message locally
-		addMessage(userMessage, 'user', fileData);
+	// Handle message display/broadcasting (only once, with the clean userMessage).
+	// Didactic triggers are invisible — they exist only to steer Gemini.
+	if (!isDidacticTrigger) {
+		if (window.sessionManager && window.sessionManager.sessionId) {
+			// In session mode, broadcast user message
+			window.sessionManager.broadcastMessage(userMessage, 'user', fileData);
+		} else {
+			// Not in session, add message locally
+			addMessage(userMessage, 'user', fileData);
+		}
 	}
 
 	// processUserMessage is only ever called when THIS student submits a message —
@@ -1379,6 +1464,11 @@ async function processUserMessage(message) {
 	// processUserMessage runs the AI, regardless of session mode.
 
 	showLoading();
+
+	// contextMessage is what actually goes into context / gets sent to Gemini.
+	// Whiteboard annotations are appended here, not to userMessage, so the
+	// displayed bubble stays clean.
+	let contextMessage = userMessage;
 
 	try {
 		// ── Attach student whiteboard image to this message (at-home mode) ──────
@@ -1427,11 +1517,11 @@ async function processUserMessage(message) {
 					// Prepend so Gemini sees it before any other uploaded files
 					processedFiles = [wbFile, ...processedFiles];
 
-					// If the user sent no text, tell Gemini what the image is
-					if (!userMessage) {
-						userMessage = 'Here is my student whiteboard. Please look at it and help me as my physics tutor.';
+					// Annotate contextMessage only — the displayed bubble is unchanged
+					if (!contextMessage) {
+						contextMessage = 'Here is my student whiteboard. Please look at it and help me as my physics tutor.';
 					} else {
-						userMessage = `[Student whiteboard attached] ${userMessage}`;
+						contextMessage = `[Student whiteboard attached] ${contextMessage}`;
 					}
 				} catch (wbErr) {
 					console.warn('[whiteboard] Could not capture whiteboard image:', wbErr);
@@ -1440,7 +1530,11 @@ async function processUserMessage(message) {
 		}
 
 		// Add user message to context for AI
-		if (window.sessionManager && window.sessionManager.sessionId) {
+		if (isDidacticTrigger) {
+			// Inject as a system instruction, not a user turn — Gemini should treat
+			// this as a directive, not as something the student typed.
+			context.push({ role: 'system', content: contextMessage });
+		} else if (window.sessionManager && window.sessionManager.sessionId) {
 			// In-class shared session:
 			// 1. On first message, inject full DB history into context (once)
 			// 2. Flush any messages received from other clients via WebSocket
@@ -1454,10 +1548,10 @@ async function processUserMessage(message) {
 				window._pendingContextUpdate = [];
 			}
 			// Append current message attributed to this student
-			context.push({ role: 'user', content: `${window.sessionManager.userName}: ${userMessage}` });
+			context.push({ role: 'user', content: `${window.sessionManager.userName}: ${contextMessage}` });
 		} else {
 			// Not in session — just add current message
-			context.push({ role: 'user', content: userMessage });
+			context.push({ role: 'user', content: contextMessage });
 		}
 		// Search for matching physics textbook sections
 		const searchResults = await searchPhysicsTextbook(userMessage || message);
@@ -1519,11 +1613,25 @@ Your job right now is to guide the student to the answer themselves. Follow thes
 			content: modeReminder
 		});
 
+		// Re-inject pinned upload context (PDF/image from turn 1) so Gemini
+		// always has the original problem text, even after context trimming.
+		if (pinnedUploadContext) {
+			context.push({
+				role: 'system',
+				content: pinnedUploadContext
+			});
+		}
+
 		// Get AI response with files (only if files processed successfully)
 		let botResponse = await getGeminiResponse(context, processedFiles.length > 0 ? processedFiles : []);
 
-		// Remove the mode reminder from context after use (it's ephemeral)
-		if (context[context.length - 1]?.content?.startsWith('ACTIVE MODE:')) {
+		// Remove ephemeral system messages (pinnedUploadContext + modeReminder)
+		// from the tail of context after use so they don't accumulate.
+		while (
+			context.length > 1 &&
+			(context[context.length - 1]?.content?.startsWith('ACTIVE MODE:') ||
+			 context[context.length - 1]?.content?.startsWith('UPLOADED PROBLEM CONTEXT'))
+		) {
 			context.pop();
 		}
 
