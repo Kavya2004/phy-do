@@ -3,6 +3,7 @@ let tutorMode = null; // null = not yet chosen, 'D' = direct, 'S' = step-by-step
 let _modePromptSent = false; // true once we've asked the D/S question
 let _pendingQuestion = null; // stores the user's first question while waiting for D/S choice
 let _originalQuestion = null; // stores the student's original question so switching to D mid-S gives the full answer to it, not the last sub-question
+let _fileOnlyFirstTurn = false; // true when the first message was a file-only upload — D/S prompt shown after the first bot response
 
 // Pinned upload context — set once when a PDF or image is first uploaded,
 // re-injected as a system message before every subsequent Gemini call so
@@ -1338,43 +1339,61 @@ async function processUserMessage(message) {
 			setTimeout(() => processUserMessage(q), 100);
 		} else if (tutorMode === 'D' && previousMode === 'S' && _originalQuestion) {
 			// Mid-conversation switch S→D: re-answer the original question directly.
-			// We pass a DIDACTIC TRIGGER so Gemini knows to give the full answer to
-			// the root problem, not just respond to the last Socratic sub-question.
+			// Build the problem anchor from pinnedUploadContext (OCR/PDF text) when
+			// available — _originalQuestion may just be "I uploaded an image..." which
+			// gives Gemini nothing to work from.
+			let problemAnchor;
+			if (pinnedUploadContext) {
+				// The real problem is in the uploaded content; tell Gemini to use it.
+				problemAnchor =
+					`The student's original problem is the image/PDF they uploaded at the start of this conversation. ` +
+					`Its content is captured in the UPLOADED PROBLEM CONTEXT system message. ` +
+					`Use that as the problem to answer.`;
+			} else {
+				problemAnchor = `"${_originalQuestion}"`;
+			}
 			const trigger =
 				`DIDACTIC TRIGGER — The student has just switched to Direct Answer mode. ` +
 				`Ignore the Socratic sub-questions from earlier turns. ` +
-				`Give a complete, well-structured direct answer to their ORIGINAL question:\n\n"${_originalQuestion}"`;
+				`Give a complete, well-structured direct answer to their ORIGINAL question:\n\n${problemAnchor}`;
 			setTimeout(() => processUserMessage(trigger), 100);
 		}
 		return;
 	}
 
 	if (tutorMode === null) {
-		context.push({ role: 'user', content: message });
-		_pendingQuestion = message;
-		_originalQuestion = message; // remember this as the root question for the whole session
+		// File-only first message (no text): the files will be cleared after processing,
+		// so we can't replay the message later via _pendingQuestion. Skip the D/S gate,
+		// answer immediately in direct mode, then ask for D/S preference afterwards.
+		if (uploadedFiles.length > 0 && !message.trim()) {
+			tutorMode = 'D';
+			_fileOnlyFirstTurn = true;
+			// Fall through to processing below — the D/S prompt will be appended
+			// after the bot responds (see post-response block below).
+		} else {
+			// Text message (with or without files): stash as pending, show D/S prompt.
+			context.push({ role: 'user', content: message });
+			_pendingQuestion = message;
+			_originalQuestion = message;
 
-		if (!_modePromptSent) {
-			const modePrompt = 'Would you like me to give you the answer directly (reply <strong><u>"D"</u></strong>), or would you prefer me to walk you through it step by step (reply <strong><u>"S"</u></strong>)? <strong><u>IMPORTANT!</u></strong> At any time during our conversation, you can type <strong><u>"D"</u></strong> or <strong><u>"S"</u></strong> to switch between these two conversation modes.';
-			context.push({ role: 'assistant', content: modePrompt });
-			_modePromptSent = true;
-			if (_inSession && window.sessionManager) {
-				// In-class: broadcast the student's question and the mode prompt
-				// so every student at the table sees both messages.
+			if (!_modePromptSent) {
+				const modePrompt = 'Would you like me to give you the answer directly (reply <strong><u>"D"</u></strong>), or would you prefer me to walk you through it step by step (reply <strong><u>"S"</u></strong>)? <strong><u>IMPORTANT!</u></strong> At any time during our conversation, you can type <strong><u>"D"</u></strong> or <strong><u>"S"</u></strong> to switch between these two conversation modes.';
+				context.push({ role: 'assistant', content: modePrompt });
+				_modePromptSent = true;
+				if (_inSession && window.sessionManager) {
+					window.sessionManager.broadcastMessage(message, 'user');
+					window.sessionManager.broadcastMessage(modePrompt, 'bot');
+				} else {
+					addMessage(message, 'user');
+					addMessage(modePrompt, 'bot');
+				}
+			} else if (_inSession && window.sessionManager) {
 				window.sessionManager.broadcastMessage(message, 'user');
-				window.sessionManager.broadcastMessage(modePrompt, 'bot');
 			} else {
 				addMessage(message, 'user');
-				addMessage(modePrompt, 'bot');
 			}
-		} else if (_inSession && window.sessionManager) {
-			// Mode prompt already sent — just broadcast the user question
-			// so it appears in the shared chat for everyone.
-			window.sessionManager.broadcastMessage(message, 'user');
-		} else {
-			addMessage(message, 'user');
+			return;
 		}
-		return;
 	}
 
 	isProcessing = true;
@@ -1717,6 +1736,21 @@ Your job right now is to guide the student to the answer themselves. Follow thes
 			// Auto-generate conversation title from the first exchange
 			if (window.chatHistoryManager) {
 				window.chatHistoryManager.autoTitle(message, botResponse);
+			}
+		}
+
+		// If this was a file-only first turn we skipped the D/S gate and answered
+		// immediately in D mode. Now show the prompt so the student can switch to S.
+		if (_fileOnlyFirstTurn) {
+			_fileOnlyFirstTurn = false;
+			_modePromptSent = true;
+			tutorMode = null; // reset — student hasn't explicitly chosen yet
+			const modePrompt = 'That was a direct answer. Would you like me to walk you through the next problem step by step instead (reply <strong><u>"S"</u></strong>), or keep giving direct answers (reply <strong><u>"D"</u></strong>)? You can switch at any time.';
+			context.push({ role: 'assistant', content: modePrompt });
+			if (_inSession && window.sessionManager) {
+				window.sessionManager.broadcastMessage(modePrompt, 'bot');
+			} else {
+				addMessage(modePrompt, 'bot');
 			}
 		}
 
