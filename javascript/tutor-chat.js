@@ -1485,8 +1485,7 @@ async function processUserMessage(message) {
 	// tags like "[Student whiteboard attached]"; those go only into contextMessage.
 	let userMessage = message.trim();
 
-	// DIDACTIC TRIGGER: internal system signal, never shown in the chat bubble.
-	const isDidacticTrigger = userMessage.startsWith('DIDACTIC TRIGGER');
+	// DIDACTIC TRIGGER was already detected at the top of this function.
 
 	if (processedFiles.length > 0) {
 		if (hasImages && !userMessage) {
