@@ -1479,6 +1479,67 @@ function setupImageInteraction(boardType) {
 window.generateAndPlaceImage = generateAndPlaceImage;
 
 // Export functions for external use
+// Save whiteboard (canvas + stickers) as a PNG file download.
+// Uses the same compositing logic as sendWhiteboardToTutor so stickers
+// and placed images are included in the saved file.
+function saveWhiteboardAsImage(boardType = 'student') {
+	const canvas  = boardType === 'teacher' ? teacherCanvas : studentCanvas;
+	const overlay = document.getElementById('stickerOverlay');
+	const btn     = document.getElementById('saveWhiteboardBtn');
+	if (!canvas) return;
+
+	if (btn) { btn.textContent = '⏳ Saving…'; btn.disabled = true; }
+
+	// Composite onto an offscreen canvas with a white background
+	const snap   = document.createElement('canvas');
+	snap.width   = canvas.width;
+	snap.height  = canvas.height;
+	const ctx    = snap.getContext('2d');
+
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(0, 0, snap.width, snap.height);
+	ctx.drawImage(canvas, 0, 0);
+
+	// Composite placed stickers
+	const promises = [];
+	if (overlay && boardType === 'student') {
+		overlay.querySelectorAll('.placed-sticker').forEach(el => {
+			const img = el.querySelector('img');
+			if (!img) return;
+			const left = parseInt(el.style.left) || 0;
+			const top  = parseInt(el.style.top)  || 0;
+			const w    = el.offsetWidth  || parseInt(el.style.width)  || 80;
+			const h    = el.offsetHeight || parseInt(el.style.height) || 80;
+			if (img.naturalWidth === 0) {
+				promises.push(new Promise(resolve => {
+					img.onload = () => { ctx.drawImage(img, left, top, w, h); resolve(); };
+				}));
+			} else {
+				ctx.drawImage(img, left, top, w, h);
+			}
+		});
+	}
+
+	Promise.all(promises).then(() => {
+		snap.toBlob(blob => {
+			if (btn) { btn.textContent = '💾 Save'; btn.disabled = false; }
+			if (!blob) return;
+
+			const ts  = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+			const url = URL.createObjectURL(blob);
+			const a   = document.createElement('a');
+			a.href     = url;
+			a.download = `whiteboard-${ts}.png`;
+			a.style.display = 'none';
+			document.body.appendChild(a);
+			a.click();
+			setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
+		}, 'image/png');
+	});
+}
+
+window.saveWhiteboardAsImage = saveWhiteboardAsImage;
+
 window.tutorWhiteboard = {
 	clearWhiteboard,
 	toggleDrawing,
@@ -1496,7 +1557,8 @@ window.tutorWhiteboard = {
 	insertEquals,
 	insertFraction,
 	insertSquareRoot,
-	insertPi
+	insertPi,
+	saveWhiteboardAsImage
 };
 
 // Quick graph generation function
