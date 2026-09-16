@@ -440,8 +440,9 @@
 		<script>
 			(function () {
 				const BACKEND = 'https://phy-do.onrender.com';
-				const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
-				const WARNING_BEFORE_MS = 60 * 1000;       // warn 1 minute before
+				const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes (at-home)
+				const IDLE_TIMEOUT_INCLASS_MS = 75 * 60 * 1000; // 1 hr 15 min (in-class)
+				const WARNING_BEFORE_MS = 60 * 1000;            // warn 1 minute before
 
 				let idleTimer = null;
 				let warningTimer = null;
@@ -479,7 +480,14 @@
 				async function doAutoLogout() {
 					removeWarningBanner();
 					try {
-						if (window._activityId) {
+						if (window._inClassActivityId) {
+							await fetch(`${BACKEND}/api/in-class/activity/logout`, {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ activityId: window._inClassActivityId }),
+							});
+							window._inClassActivityId = null;
+						} else if (window._activityId) {
 							await fetch(`${BACKEND}/api/user-activity/logout`, {
 								method: 'POST',
 								headers: { 'Content-Type': 'application/json' },
@@ -494,7 +502,7 @@
 
 				function showWarning() {
 					// Only show warning if the user is actually signed in
-					if (!window._activityId && !window.studentEmail) return;
+					if (!window._activityId && !window.studentEmail && !window._inClassActivityId) return;
 					createWarningBanner();
 					let remaining = Math.round(WARNING_BEFORE_MS / 1000);
 					const countdownEl = document.getElementById('idleCountdown');
@@ -508,14 +516,16 @@
 
 				function resetIdleTimer() {
 					// Don't track if user hasn't logged in yet
-					if (!window._activityId && !window.studentEmail) return;
+					if (!window._activityId && !window.studentEmail && !window._inClassActivityId) return;
 
 					removeWarningBanner();
 					clearTimeout(idleTimer);
 					clearTimeout(warningTimer);
 
-					warningTimer = setTimeout(showWarning, IDLE_TIMEOUT_MS - WARNING_BEFORE_MS);
-					idleTimer = setTimeout(doAutoLogout, IDLE_TIMEOUT_MS);
+					// In-class students get 1 hr 15 min; at-home students get 15 min
+					const timeout = window._inClassMode ? IDLE_TIMEOUT_INCLASS_MS : IDLE_TIMEOUT_MS;
+					warningTimer = setTimeout(showWarning, timeout - WARNING_BEFORE_MS);
+					idleTimer = setTimeout(doAutoLogout, timeout);
 				}
 
 				// Expose so tutor-chat.js can reset the timer on every message
@@ -523,7 +533,7 @@
 
 				// Start the timer once the user signs in
 				const signInWatcher = setInterval(() => {
-					if (window._activityId || window.studentEmail) {
+					if (window._activityId || window.studentEmail || window._inClassActivityId) {
 						clearInterval(signInWatcher);
 						resetIdleTimer();
 					}
