@@ -1063,7 +1063,14 @@ class SessionManager {
 
     let displayText = message;
     if (sender === 'bot' && window.convertLatexToUnicode) {
-      displayText = window.convertLatexToUnicode(message);
+      // Protect $...$ and $$...$$ blocks so the unicode converter doesn't
+      // corrupt math expressions before KaTeX gets a chance to render them.
+      const mathBlocks = [];
+      let protected_text = message
+        .replace(/\$\$[\s\S]+?\$\$/g, (m) => { mathBlocks.push(m); return `\x00MATH${mathBlocks.length - 1}\x00`; })
+        .replace(/\$[^$\n]+?\$/g,     (m) => { mathBlocks.push(m); return `\x00MATH${mathBlocks.length - 1}\x00`; });
+      protected_text = window.convertLatexToUnicode(protected_text);
+      displayText = protected_text.replace(/\x00MATH(\d+)\x00/g, (_, i) => mathBlocks[i]);
     }
 
     let filesHtml = '';
@@ -1112,6 +1119,31 @@ class SessionManager {
     messageDiv.appendChild(content);
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Render LaTeX math in bot messages using KaTeX (same as _addMessageInternal)
+    if (sender === 'bot') {
+      const msgText = content.querySelector('.message-text') || content;
+      const renderKatex = () => {
+        if (window.renderMathInElement) {
+          window.renderMathInElement(msgText, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$',  right: '$',  display: false },
+              { left: '\\(', right: '\\)', display: false },
+              { left: '\\[', right: '\\]', display: true }
+            ],
+            throwOnError: false,
+            output: 'html'
+          });
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      };
+      if (window.renderMathInElement) {
+        renderKatex();
+      } else {
+        window.addEventListener('load', renderKatex, { once: true });
+      }
+    }
   }
 
   getFileIcon(fileType) {
