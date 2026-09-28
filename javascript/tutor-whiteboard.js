@@ -433,9 +433,11 @@ function setupResizeHandle() {
 		resizeCanvases();
 	});
 
-	// Safety valve: if mouse leaves the window during drag, clean up so
-	// nothing stays locked. mouseup won't fire in that case.
-	document.addEventListener('mouseleave', () => {
+	// Safety valve: reset drag state whenever the page loses focus or the
+	// browser window is resized by the OS — in those cases mouseup never fires
+	// inside the document, leaving isResizing stuck on true which blocks
+	// scrolling and input.
+	function cancelDrag() {
 		if (!isResizing) return;
 		isResizing = false;
 		_isDraggingResize = false;
@@ -451,7 +453,12 @@ function setupResizeHandle() {
 		resizeHandle.style.color = '';
 
 		resizeCanvases();
-	});
+	}
+
+	// mouseleave fires when the pointer exits the document viewport
+	document.addEventListener('mouseleave', cancelDrag);
+	// blur fires when the OS steals focus (e.g. dragging the browser window border)
+	window.addEventListener('blur', cancelDrag);
 }
 
 function toggleWhiteboardSize() {
