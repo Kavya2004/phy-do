@@ -371,25 +371,10 @@ function setupResizeHandle() {
 	let rafId = null;
 	let pendingWidth = null;
 
-	resizeHandle.addEventListener('mousedown', (e) => {
-		isResizing = true;
-		_isDraggingResize = true;
-		startX = e.clientX;
-		startWidth = parseInt(window.getComputedStyle(chatSection).width, 10);
-
-		document.body.style.cursor = 'col-resize';
-		document.body.style.userSelect = 'none';
-		chatSection.style.transition = 'none';
-		whiteboardSection.style.transition = 'none';
-
-		resizeHandle.style.background = '#337810';
-		resizeHandle.style.color = 'white';
-
-		e.preventDefault();
-		e.stopPropagation();
-	});
-
-	document.addEventListener('mousemove', (e) => {
+	// Move mouse handlers: attach on drag start, remove on drag end.
+	// This means e.preventDefault() is NEVER called unless the user is
+	// actively dragging the splitter — fixing scroll being blocked.
+	function onMouseMove(e) {
 		if (!isResizing) return;
 		e.preventDefault();
 
@@ -412,14 +397,17 @@ function setupResizeHandle() {
 			chatSection.style.maxWidth  = pendingWidth + 'px';
 			pendingWidth = null;
 		});
-	});
+	}
 
-	document.addEventListener('mouseup', () => {
+	function onMouseUp() {
 		if (!isResizing) return;
 		isResizing = false;
 		_isDraggingResize = false;
 		pendingWidth = null;
 		if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+
+		document.removeEventListener('mousemove', onMouseMove);
+		document.removeEventListener('mouseup', onMouseUp);
 
 		document.body.style.cursor = '';
 		document.body.style.userSelect = '';
@@ -431,6 +419,28 @@ function setupResizeHandle() {
 
 		// Resize canvases exactly once after drag ends
 		resizeCanvases();
+	}
+
+	resizeHandle.addEventListener('mousedown', (e) => {
+		isResizing = true;
+		_isDraggingResize = true;
+		startX = e.clientX;
+		startWidth = parseInt(window.getComputedStyle(chatSection).width, 10);
+
+		document.body.style.cursor = 'col-resize';
+		document.body.style.userSelect = 'none';
+		chatSection.style.transition = 'none';
+		whiteboardSection.style.transition = 'none';
+
+		resizeHandle.style.background = '#337810';
+		resizeHandle.style.color = 'white';
+
+		// Attach drag listeners only while dragging
+		document.addEventListener('mousemove', onMouseMove);
+		document.addEventListener('mouseup', onMouseUp);
+
+		e.preventDefault();
+		e.stopPropagation();
 	});
 
 	// Safety valve: reset drag state whenever the page loses focus or the
@@ -443,6 +453,9 @@ function setupResizeHandle() {
 		_isDraggingResize = false;
 		pendingWidth = null;
 		if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+
+		document.removeEventListener('mousemove', onMouseMove);
+		document.removeEventListener('mouseup', onMouseUp);
 
 		document.body.style.cursor = '';
 		document.body.style.userSelect = '';
@@ -459,6 +472,21 @@ function setupResizeHandle() {
 	document.addEventListener('mouseleave', cancelDrag);
 	// blur fires when the OS steals focus (e.g. dragging the browser window border)
 	window.addEventListener('blur', cancelDrag);
+
+	// When the window crosses into mobile territory (≤1100px), clear any
+	// inline flexBasis/maxWidth the splitter set so the mobile CSS can take over
+	// and the whiteboard nav buttons become visible again.
+	const mobileBreakpoint = window.matchMedia('(max-width: 1100px)');
+	function onBreakpointChange(mq) {
+		if (mq.matches) {
+			// Entering mobile — strip inline overrides
+			chatSection.style.flexBasis = '';
+			chatSection.style.maxWidth  = '';
+		}
+	}
+	mobileBreakpoint.addEventListener('change', onBreakpointChange);
+	// Run once immediately in case the page loaded already in mobile width
+	onBreakpointChange(mobileBreakpoint);
 }
 
 function toggleWhiteboardSize() {

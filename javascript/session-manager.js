@@ -83,7 +83,7 @@ class SessionManager {
       display: flex; align-items: center; justify-content: center; gap: 10px;
       padding: 8px 16px; background: #881c1c; color: white;
       font-size: 13px; font-weight: 600; text-align: center;
-      position: sticky; top: 0; z-index: 100; flex-shrink: 0;
+      flex-shrink: 0; z-index: 100;
     `;
     banner.innerHTML = `
       <span>🏫 In-Class Mode</span>
