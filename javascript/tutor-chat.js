@@ -1,6 +1,10 @@
 // ── Vercel Analytics helper ───────────────────────────────────────────────────
 function track(event, data = {}) {
-	if (window.va) window.va('event', { name: event, ...data });
+	if (window.va) window.va('event', {
+		name: event,
+		context: window._inClassMode ? 'in_class' : 'at_home',
+		...data,
+	});
 }
 
 let isProcessing = false;
