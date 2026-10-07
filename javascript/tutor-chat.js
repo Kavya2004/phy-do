@@ -1,10 +1,28 @@
 // ── Vercel Analytics helper ───────────────────────────────────────────────────
 function track(event, data = {}) {
-	if (window.va) window.va('event', {
-		name: event,
-		context: window._inClassMode ? 'in_class' : 'at_home',
-		...data,
-	});
+  const featureMap = {
+    message_sent:             'chat',
+    file_uploaded:            'file',
+    save_chat_clicked:        'chat',
+    summary_generated:        'summary',
+    quiz_opened:              'quiz',
+    voice_input_used:         'voice',
+    whiteboard_tab_opened:    'whiteboard',
+    whiteboard_draw_toggled:  'whiteboard',
+    whiteboard_saved:         'whiteboard',
+    whiteboard_sent_to_tutor: 'whiteboard',
+    notes_draw_mode_used:     'notes',
+    notes_cleared:            'notes',
+    notes_saved:              'notes',
+  };
+
+  const feature = featureMap[event];
+  if (feature && window.sessionTracker) window.sessionTracker.use(feature);
+
+  if (window.va) window.va('event', {
+    name: event,
+    data: { ...data, context: window._inClassMode ? 'in_class' : 'at_home' }
+  });
 }
 
 let isProcessing = false;
@@ -195,7 +213,7 @@ function initializeFileUpload() {
 
 	if (uploadButton && fileInput) {
 		uploadButton.addEventListener('click', () => fileInput.click());
-		fileInput.addEventListener('change', (e) => { track('file_uploaded'); handleFileSelect(e); });
+		fileInput.addEventListener('change', handleFileSelect);
 	}
 }
 
@@ -274,6 +292,7 @@ async function getGeminiResponse(messages, files = []) {
 }
 
 function handleFileSelect(event) {
+	track('file_uploaded');
 	const files = Array.from(event.target.files);
 	const filePreview = document.getElementById('filePreview');
 

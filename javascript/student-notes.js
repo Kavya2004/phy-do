@@ -166,7 +166,7 @@ class NotebookManager {
     }
 
     setMode(mode) {
-        if (mode === 'draw') window.va && window.va('event', { name: 'notes_draw_mode_used', context: window._inClassMode ? 'in_class' : 'at_home' });
+        if (mode === 'draw') track('notes_draw_mode_used');
         this.currentMode = mode;
         const writeArea = document.getElementById('studentNotes');
         const drawArea = document.getElementById('notesCanvas');
@@ -222,7 +222,7 @@ class NotebookManager {
 
     clearNotes() {
         if (confirm('Are you sure you want to clear all notes?')) {
-            window.va && window.va('event', { name: 'notes_cleared', context: window._inClassMode ? 'in_class' : 'at_home' });
+            track('notes_cleared');
             const textArea = document.getElementById('studentNotes');
             if (textArea) textArea.value = '';
             if (this.ctx && this.canvas) {
@@ -233,7 +233,7 @@ class NotebookManager {
     }
 
     async saveNotes() {
-        window.va && window.va('event', { name: 'notes_saved', context: window._inClassMode ? 'in_class' : 'at_home' });
+        track('notes_saved');
         const textContent = document.getElementById('studentNotes')?.value || '';
         const timestamp = new Date().toLocaleString();
         

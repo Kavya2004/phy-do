@@ -103,7 +103,7 @@ function setupWhiteboardControls() {
 		drawStudentButton.addEventListener('click', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			window.va && window.va('event', { name: 'whiteboard_draw_toggled', context: window._inClassMode ? 'in_class' : 'at_home' });
+			track('whiteboard_draw_toggled');
 			toggleDrawing('student');
 		});
 	} else {
@@ -294,8 +294,8 @@ function setupCanvas(canvas, ctx, boardType) {
 }
 
 function switchWhiteboard(boardType) {
-	if (boardType === 'student') window.va && window.va('event', { name: 'whiteboard_tab_opened', context: window._inClassMode ? 'in_class' : 'at_home' });
-	if (boardType === 'notes')   window.va && window.va('event', { name: 'notes_tab_opened',       context: window._inClassMode ? 'in_class' : 'at_home' });
+	if (boardType === 'student') track('whiteboard_tab_opened');
+	else if (boardType === 'notes') track('notes_tab_opened');
 	// Save current board state before switching
 	if (activeWhiteboard === 'teacher' || activeWhiteboard === 'student') {
 		saveDrawingState(activeWhiteboard);
@@ -1521,7 +1521,7 @@ window.generateAndPlaceImage = generateAndPlaceImage;
 // Uses the same compositing logic as sendWhiteboardToTutor so stickers
 // and placed images are included in the saved file.
 function saveWhiteboardAsImage(boardType = 'student') {
-	window.va && window.va('event', { name: 'whiteboard_saved', context: window._inClassMode ? 'in_class' : 'at_home' });
+	track('whiteboard_saved');
 	const canvas  = boardType === 'teacher' ? teacherCanvas : studentCanvas;
 	const overlay = document.getElementById('stickerOverlay');
 	const btn     = document.getElementById('saveWhiteboardBtn');
