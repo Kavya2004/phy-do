@@ -398,6 +398,7 @@
 
   // ── Snapshot whiteboard + stickers → send to tutor ───────────────────────────
   window.sendWhiteboardToTutor = function () {
+    window.va && window.va('event', { name: 'whiteboard_sent_to_tutor' });
     const canvas  = document.getElementById('studentWhiteboard');
     const overlay = document.getElementById('stickerOverlay');
     const btn     = document.getElementById('sendWhiteboardBtn');

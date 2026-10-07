@@ -1,3 +1,8 @@
+// ── Vercel Analytics helper ───────────────────────────────────────────────────
+function track(event, data = {}) {
+	if (window.va) window.va('event', { name: event, ...data });
+}
+
 let isProcessing = false;
 let tutorMode = null; // null = not yet chosen, 'D' = direct, 'S' = step-by-step
 let _modePromptSent = false; // true once we've asked the D/S question
@@ -186,7 +191,7 @@ function initializeFileUpload() {
 
 	if (uploadButton && fileInput) {
 		uploadButton.addEventListener('click', () => fileInput.click());
-		fileInput.addEventListener('change', handleFileSelect);
+		fileInput.addEventListener('change', (e) => { track('file_uploaded'); handleFileSelect(e); });
 	}
 }
 
@@ -564,7 +569,7 @@ function createChatControls() {
 		font-size: 12px;
 		transition: all 0.3s ease;
 	`;
-	saveBtn.addEventListener('click', saveChatHistory);
+	saveBtn.addEventListener('click', () => { track('save_chat_clicked'); saveChatHistory(); });
 
 	const summaryBtn = document.createElement('button');
 	summaryBtn.innerHTML = '📝 Generate Summary';
@@ -578,7 +583,7 @@ function createChatControls() {
 		font-size: 12px;
 		transition: all 0.3s ease;
 	`;
-	summaryBtn.addEventListener('click', generateChatSummary);
+	summaryBtn.addEventListener('click', () => { track('summary_generated'); generateChatSummary(); });
 
 	const quizBtn = document.createElement('button');
 	quizBtn.innerHTML = 'Quiz';
@@ -594,6 +599,7 @@ function createChatControls() {
 		transition: all 0.3s ease;
 	`;
 	quizBtn.addEventListener('click', () => {
+		track('quiz_opened');
 		if (window.quizIntegration) window.quizIntegration.showQuizMenu();
 	});
 
@@ -636,6 +642,7 @@ function initializeVoiceInput() {
 		} else {
 			recognition.start();
 			listening = true;
+			track('voice_input_used');
 			micBtn.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
 			micBtn.title = 'Listening... click to stop';
 		}
@@ -654,6 +661,7 @@ function handleSendMessage() {
 	const message = input.value.trim();
 
 	if ((message || uploadedFiles.length > 0) && !isProcessing) {
+		track('message_sent');
 		processUserMessage(message);
 		input.value = '';
 	}
