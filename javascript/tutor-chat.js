@@ -1,8 +1,8 @@
 // ── Vercel Analytics helper ───────────────────────────────────────────────────
 function track(event, data = {}) {
-	if (window.va) window.va('track', event, {
-		context: window._inClassMode ? 'in_class' : 'at_home',
-		...data,
+	if (window.va) window.va('event', {
+		name: event,
+		data: { context: window._inClassMode ? 'in_class' : 'at_home', ...data },
 	});
 }
 
