@@ -260,6 +260,8 @@ function handleDroppedFiles(files) {
 }
 async function getGeminiResponse(messages, files = []) {
 	try {
+		const t0 = performance.now();
+
 		const response = await fetch('/api/gemini', {
 			method: 'POST',
 			headers: {
@@ -268,12 +270,27 @@ async function getGeminiResponse(messages, files = []) {
 			body: JSON.stringify({ messages, files })
 		});
 
+		const fetchMs = performance.now() - t0;
+
 		if (!response.ok) {
 			const errorData = await response.json().catch(() => ({}));
 			throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
 		}
 
 		const data = await response.json();
+
+		// Log full latency breakdown to browser console
+		const lat = data._latency || {};
+		console.log(
+			`%c[tutor latency]` +
+			` total_fetch=${fetchMs.toFixed(0)}ms` +
+			` | gemini_server=${lat.gemini_ms ?? '?'}ms` +
+			` | network_overhead=${lat.gemini_ms ? (fetchMs - lat.gemini_ms).toFixed(0) : '?'}ms` +
+			` | tokens: prompt=${lat.tokens?.prompt ?? '?'} output=${lat.tokens?.output ?? '?'}` +
+			` thinking=${lat.tokens?.thinking ?? '?'} total=${lat.tokens?.total ?? '?'}`,
+			'color: #4a90d9; font-weight: bold'
+		);
+
 		return data.response || 'No response received from Gemini.';
 	} catch (error) {
 
@@ -1488,8 +1505,7 @@ async function processUserMessage(message) {
 	}
 
 	isProcessing = true;
-
-	// Files were already processed (and pinnedUploadContext already built) in the
+	const _msgT0 = performance.now();
 	// early block above. Merge with earlyProcessedFiles here.
 	let processedFiles = earlyProcessedFiles;
 	let fileData = earlyFileData;
@@ -1637,7 +1653,10 @@ async function processUserMessage(message) {
 			context.push({ role: 'user', content: contextMessage });
 		}
 		// Search for matching physics textbook sections
+		const _t0 = performance.now();
 		const searchResults = await searchPhysicsTextbook(userMessage || message);
+		const _retrievalMs = performance.now() - _t0;
+		console.log(`%c[tutor latency] retrieval=${_retrievalMs.toFixed(0)}ms (pinecone+pdf+search in parallel)`, 'color: #e67e22; font-weight: bold');
 
 		// Build a url lookup map: source name -> url (for YouTube links)
 		const sourceUrlMap = {};
@@ -1843,6 +1862,7 @@ Your job right now is to guide the student to the answer themselves. Follow thes
 		loadingInterval = null;
 	}
 	hideLoading();
+	console.log(`%c[tutor latency] ✅ total_end_to_end=${(performance.now() - _msgT0).toFixed(0)}ms`, 'color: #27ae60; font-weight: bold; font-size: 13px');
 	isProcessing = false;
 }
 

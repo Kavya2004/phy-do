@@ -117,6 +117,8 @@ export default async function handler(req, res) {
       }
     };
 
+    const t0 = Date.now();
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -142,7 +144,28 @@ export default async function handler(req, res) {
       throw new Error('No response generated from Gemini');
     }
 
-    res.status(200).json({ response: generatedText });
+    const usage = data.usageMetadata || {};
+    const gemini_ms = Date.now() - t0;
+    console.log(
+      `[gemini] latency=${gemini_ms}ms` +
+      ` | prompt=${usage.promptTokenCount ?? '?'}tok` +
+      ` | output=${usage.candidatesTokenCount ?? '?'}tok` +
+      ` | thinking=${usage.thoughtsTokenCount ?? '?'}tok` +
+      ` | total=${usage.totalTokenCount ?? '?'}tok`
+    );
+
+    res.status(200).json({
+      response: generatedText,
+      _latency: {
+        gemini_ms,
+        tokens: {
+          prompt:   usage.promptTokenCount    ?? null,
+          output:   usage.candidatesTokenCount ?? null,
+          thinking: usage.thoughtsTokenCount  ?? null,
+          total:    usage.totalTokenCount     ?? null,
+        }
+      }
+    });
 
   } catch (error) {
     res.status(500).json({
