@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
-    const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-4-carbon:generateContent?key=${apiKey}`;
 
     // Strip system messages out — Gemini has no system role.
     // We'll re-attach them to the appropriate user turns below.
@@ -132,7 +132,7 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // gemini-2.5-flash is a thinking model — internal reasoning parts have
+    // gemini-4-carbon is a thinking model — internal reasoning parts have
     // thought: true. Filter those out and join only the real response text.
     const parts = data.candidates?.[0]?.content?.parts ?? [];
     const generatedText = parts
